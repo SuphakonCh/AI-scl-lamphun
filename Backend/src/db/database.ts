@@ -18,7 +18,14 @@ const pool = mysql.createPool({
   user: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_DATABASE,
-  ssl: sslConfig
+  ssl: sslConfig,
+  waitForConnections: true,
+  connectionLimit: Number(process.env.DB_POOL_LIMIT ?? 10),
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
+  idleTimeout: Number(process.env.DB_IDLE_TIMEOUT_MS ?? 600000),
+  connectTimeout: Number(process.env.DB_CONNECT_TIMEOUT_MS ?? 10000)
 });
 
 export async function initialize() {

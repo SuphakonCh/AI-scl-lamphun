@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { and, eq, ne } from 'drizzle-orm/sql/expressions/conditions'
 import { db } from '../..'
-import { users } from '../../db/schema'
+import { deviceOwners, devices, users } from '../../db/schema'
 
 const getBearerToken = (authHeader?: string) => {
 	if (!authHeader) return null
@@ -16,6 +16,19 @@ const userUpdateResponseSchema = t.Object({
 	message: t.String()
 })
 
+const userOwnsResponseSchema = t.Object({
+	deviceInfo: t.Array(
+		t.Object({
+			monitorName: t.String(),
+			customName: t.String(),
+			deviceLocation: t.Object({
+				latitude: t.String(),
+				longtitude: t.String()
+			})
+		})
+	)
+})
+
 export const userRoutes = new Elysia({
 	prefix: '/api/v2/user'
 })
@@ -24,6 +37,57 @@ export const userRoutes = new Elysia({
 			name: 'jwt',
 			secret: process.env.JWT_SECRET ?? 'change-me'
 		})
+	)
+	.get(
+		'/owns',
+		async ({ headers, jwt, set }) => {
+			const token = getBearerToken(headers.authorization)
+
+			if (!token) {
+				set.status = 401
+				return {
+					deviceInfo: []
+				}
+			}
+
+			const payload = await jwt.verify(token).catch(() => null)
+
+			if (!payload || typeof payload.id !== 'number') {
+				set.status = 401
+				return {
+					deviceInfo: []
+				}
+			}
+
+			const database = await db
+			const rows = await database
+				.select({
+					monitorName: devices.monitorItem,
+					customName: devices.customName,
+					latitude: devices.latitude,
+					longtitude: devices.longitude
+				})
+				.from(deviceOwners)
+				.innerJoin(devices, eq(deviceOwners.deviceId, devices.id))
+				.where(eq(deviceOwners.userId, payload.id))
+
+			return {
+				deviceInfo: rows.map((row) => ({
+					monitorName: row.monitorName ?? '',
+					customName: row.customName ?? '',
+					deviceLocation: {
+						latitude: row.latitude ?? '',
+						longtitude: row.longtitude ?? ''
+					}
+				}))
+			}
+		},
+		{
+			headers: t.Object({
+				authorization: t.String()
+			}),
+			response: userOwnsResponseSchema
+		}
 	)
 	.put(
 		'/',

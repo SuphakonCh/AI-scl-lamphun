@@ -36,6 +36,15 @@ const deviceLatestResponseSchema = t.Object({
   monitorTime: t.String()
 })
 
+const deviceInfoResponseSchema = t.Object({
+  monitorName: t.String(),
+  customName: t.String(),
+  deviceLocation: t.Object({
+    latitude: t.String(),
+    longtitude: t.String()
+  })
+})
+
 const deviceRegisterResponseSchema = t.Object({
   code: t.Number(),
   message: t.String()
@@ -222,6 +231,102 @@ export const deviceRoutes = new Elysia({
         )
       }),
       response: deviceRegisterResponseSchema
+    }
+  )
+  .post(
+    '/info',
+    async ({ body, headers, jwt, set }) => {
+      const token = getBearerToken(headers.authorization)
+
+      if (!token) {
+        set.status = 401
+        return {
+          monitorName: '',
+          customName: '',
+          deviceLocation: {
+            latitude: '',
+            longtitude: ''
+          }
+        }
+      }
+
+      const payload = await jwt.verify(token).catch(() => null)
+
+      if (!payload || typeof payload.id !== 'number') {
+        set.status = 401
+        return {
+          monitorName: '',
+          customName: '',
+          deviceLocation: {
+            latitude: '',
+            longtitude: ''
+          }
+        }
+      }
+
+      const database = await db
+      const { deviceId } = body
+
+      const deviceRecords = await database
+        .select()
+        .from(devices)
+        .where(eq(devices.deviceId, deviceId))
+        .limit(1)
+
+      const deviceRecord = deviceRecords[0]
+
+      if (!deviceRecord) {
+        set.status = 404
+        return {
+          monitorName: '',
+          customName: '',
+          deviceLocation: {
+            latitude: '',
+            longtitude: ''
+          }
+        }
+      }
+
+      const ownership = await database
+        .select()
+        .from(deviceOwners)
+        .where(
+          and(
+            eq(deviceOwners.userId, payload.id),
+            eq(deviceOwners.deviceId, deviceRecord.id)
+          )
+        )
+        .limit(1)
+
+      if (ownership.length === 0) {
+        set.status = 403
+        return {
+          monitorName: '',
+          customName: '',
+          deviceLocation: {
+            latitude: '',
+            longtitude: ''
+          }
+        }
+      }
+
+      return {
+        monitorName: deviceRecord.monitorItem ?? '',
+        customName: deviceRecord.customName ?? '',
+        deviceLocation: {
+          latitude: deviceRecord.latitude ?? '',
+          longtitude: deviceRecord.longitude ?? ''
+        }
+      }
+    },
+    {
+      headers: t.Object({
+        authorization: t.String()
+      }),
+      body: t.Object({
+        deviceId: t.String()
+      }),
+      response: deviceInfoResponseSchema
     }
   )
   .delete(

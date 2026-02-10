@@ -43,6 +43,32 @@ const deviceCache = {
   lastFetched: 0
 }
 
+const isConnectionLostError = (error: unknown) => {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: string }).code === 'PROTOCOL_CONNECTION_LOST'
+  )
+}
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms)
+  })
+
+const warmUpDatabase = async (database: MySql2Database) => {
+  try {
+    await database.execute(sql`select 1`)
+  } catch (error) {
+    if (!isConnectionLostError(error)) {
+      throw error
+    }
+    await sleep(500)
+    await database.execute(sql`select 1`)
+  }
+}
+
 const translateMainStreamMessage = (message: string) => {
   const translations: Record<string, string> = {
     '当前ip并发查询限制为1次,每秒钟查询限制为1次,每分钟查询限制为10次,限制条件触发':
@@ -133,6 +159,18 @@ const loadDevicesFromDatabase = async (database: MySql2Database) => {
 const refreshDeviceCache = async (database: MySql2Database) => {
   deviceCache.devices = await loadDevicesFromDatabase(database)
   deviceCache.lastFetched = Date.now()
+}
+
+const refreshDeviceCacheWithRetry = async (database: MySql2Database) => {
+  try {
+    await refreshDeviceCache(database)
+  } catch (error) {
+    if (!isConnectionLostError(error)) {
+      throw error
+    }
+    await sleep(1000)
+    await refreshDeviceCache(database)
+  }
 }
 
 const fetchBatch = async (
@@ -288,6 +326,7 @@ export const startMainStreamSync = (
   }
 
   const runSync = async () => {
+    await warmUpDatabase(database)
     const end = Date.now()
     const start = end - hourMs
 
@@ -295,7 +334,7 @@ export const startMainStreamSync = (
       deviceCache.devices.length === 0 ||
       Date.now() - deviceCache.lastFetched > deviceCacheTtlMs
     ) {
-      await refreshDeviceCache(database)
+      await refreshDeviceCacheWithRetry(database)
     }
 
     const devices = deviceCache.devices
