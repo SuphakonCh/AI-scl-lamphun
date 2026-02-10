@@ -1,11 +1,13 @@
 import { Elysia, t } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { db } from '../..'
+import { inArray } from 'drizzle-orm'
 import { eq, or } from 'drizzle-orm/sql/expressions/conditions'
 import { sessions, users } from '../../db/schema'
 
 const accessExpiresInSeconds = Number(process.env.JWT_ACCESS_EXPIRES_SECONDS ?? 900)
 const refreshExpiresInDays = Number(process.env.JWT_REFRESH_EXPIRES_DAYS ?? 7)
+const sessionLimit = Math.max(1, Number(process.env.LIMIT_SESSION ?? 2))
 
 const getBearerToken = (authHeader?: string) => {
     if (!authHeader) return null
@@ -74,6 +76,31 @@ const authRoutes = new Elysia({
             )
             const refreshToken = crypto.randomUUID()
             const refreshExpiresAt = buildRefreshExpiry()
+
+            const existingSessions = await database
+                .select()
+                .from(sessions)
+                .where(eq(sessions.userId, user.id))
+                .orderBy(sessions.expires_at)
+
+            const maxExistingSessions = Math.max(0, sessionLimit - 1)
+            const sessionsToRemove = existingSessions.slice(
+                0,
+                Math.max(0, existingSessions.length - maxExistingSessions)
+            )
+
+            if (sessionsToRemove.length > 0) {
+                await database
+                    .delete(sessions)
+                    .where(
+                        inArray(
+                            sessions.token,
+                            sessionsToRemove
+                                .map((session) => session.token)
+                                .filter((token): token is string => Boolean(token))
+                        )
+                    )
+            }
 
             await database.insert(sessions).values({
                 userId: user.id,

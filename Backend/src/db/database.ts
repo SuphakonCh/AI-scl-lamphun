@@ -38,7 +38,7 @@ export async function initialize() {
   await connection.query(`
     CREATE TABLE IF NOT EXISTS devices (
       id INT AUTO_INCREMENT PRIMARY KEY,
-      secretId VARCHAR(255) UNIQUE,
+      deviceId VARCHAR(255) UNIQUE,
       deviceKey VARCHAR(255),
       monitorItem VARCHAR(255),
       customName VARCHAR(255),
@@ -72,7 +72,16 @@ export async function initialize() {
       deviceId VARCHAR(255),
       monitorItem VARCHAR(255),
       monitorTime VARCHAR(100),
-      monitorValue VARCHAR(100)
+      monitorValue VARCHAR(100),
+      UNIQUE KEY unique_device_time (deviceId, monitorTime)
+    )
+  `);
+  await connection.query(`
+    CREATE TABLE IF NOT EXISTS device_owners (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      user_id INT,
+      device_id INT,
+      UNIQUE KEY unique_device_owner (user_id, device_id)
     )
   `);
   await connection.end();
