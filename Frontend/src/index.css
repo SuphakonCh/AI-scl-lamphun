@@ -4,6 +4,7 @@
 :root {
   /* --- Brand Colors  --- */
   --color-brand: #0099FF;      /* ฟ้าลำพูน (Primary) */
+  --brand-secondary: #1E40AF;
   --color-bg: #F3F4F6;         /* เทาอ่อน (Background) */
   --color-surface: #FFFFFF;    /* ขาว (Card Background) */
 
@@ -25,6 +26,10 @@
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+
+
+  /*---Gradient Color*/
+  --brand-secondary-blen : linear-gradient(90deg, #1E40AF 0%, #000 100%);
 }
 
 /* 3. Global Reset */

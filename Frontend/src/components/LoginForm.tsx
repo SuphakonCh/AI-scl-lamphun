@@ -41,8 +41,6 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
             const data: LoginResponse = await response.json();
             
-            console.log('Login Success:', data);
-
             localStorage.setItem('accessToken', data.accessToken);
             localStorage.setItem('refreshToken', data.refreshToken);
 
@@ -51,7 +49,6 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
             }
 
         } catch (err: any) {
-            console.error(err);
             setError(err.message);
         } finally {
             setIsLoading(false);
@@ -60,43 +57,45 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
 
     return (
         <div className={styles.container}>
-            <h2 className={styles.title}>เข้าสู่ระบบ</h2>
+            <div className={styles.imageSection}></div>
 
-            {error && <div className={styles.error}>{error}</div>}
+            <div className={styles.formSection}>
+                <h2 className={styles.title}>Login</h2>
 
-            <form onSubmit={handleSubmit}>
-                <div className={styles.formGroup}>
-                    <label className={styles.label}>Username หรือ Email</label>
-                    <input
-                        type="text"
-                        className={styles.input}
-                        value={identifier}
-                        onChange={(e) => setIdentifier(e.target.value)}
-                        placeholder="กรอกชื่อผู้ใช้ หรือ อีเมล"
-                        required
-                    />
-                </div>
+                {error && <div className={styles.error}>{error}</div>}
 
-                <div className={styles.formGroup}>
-                    <label className={styles.label}>Password</label>
-                    <input
-                        type="password"
-                        className={styles.input}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="กรอกรหัสผ่าน"
-                        required
-                    />
-                </div>
+                <form onSubmit={handleSubmit}>
+                    <div className={styles.formGroup}>
+                        <input
+                            type="text"
+                            className={styles.input}
+                            value={identifier}
+                            onChange={(e) => setIdentifier(e.target.value)}
+                            placeholder="Username"
+                            required
+                        />
+                    </div>
 
-                <button 
-                    type="submit" 
-                    className={styles.button}
-                    disabled={isLoading}
-                >
-                    {isLoading ? 'กำลังตรวจสอบ...' : 'Login'}
-                </button>
-            </form>
+                    <div className={styles.formGroup}>
+                        <input
+                            type="password"
+                            className={styles.input}
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Password"
+                            required
+                        />
+                    </div>
+
+                    <button 
+                        type="submit" 
+                        className={styles.button}
+                        disabled={isLoading}
+                    >
+                        {isLoading ? 'Checking...' : 'LOGIN'}
+                    </button>
+                </form>
+            </div>
         </div>
     );
 }
