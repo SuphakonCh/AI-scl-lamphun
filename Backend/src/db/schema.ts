@@ -1,8 +1,8 @@
-import { mysqlTable, serial, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlTable, serial, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
-export const devies = mysqlTable("devices", {
+export const devices = mysqlTable("devices", {
     id: serial("id").primaryKey(),
-    secretId: varchar("secretId", { length: 255 }).unique(),
+    deviceId: varchar("deviceId", { length: 255 }).unique(),
     deviceKey: varchar("deviceKey", { length: 255 }),
     monitorItem: varchar("monitorItem", { length: 255 }),
     customName: varchar("customName", { length: 255 }),
@@ -28,10 +28,25 @@ export const sessions = mysqlTable("sessions", {
     expires_at: varchar("expires_at", { length: 100 })
 })
 
-export const deviceData = mysqlTable("device_data", {
+export const deviceData = mysqlTable(
+    "device_data",
+    {
+        id: serial("id").primaryKey(),
+        deviceId: varchar("deviceId", { length: 255 }),
+        monitorItem: varchar("monitorItem", { length: 255 }),
+        monitorTime: varchar("monitorTime", { length: 100 }),
+        monitorValue: varchar("monitorValue", { length: 100 })
+    },
+    (table) => ({
+        deviceTimeUnique: uniqueIndex("unique_device_time").on(
+            table.deviceId,
+            table.monitorTime
+        )
+    })
+)
+
+export const deviceOwners = mysqlTable("device_owners", {
     id: serial("id").primaryKey(),
-    deviceId: varchar("deviceId", { length: 255 }),
-    monitorItem: varchar("monitorItem", { length: 255 }),
-    monitorTime: varchar("monitorTime", { length: 100 }),
-    monitorValue: varchar("monitorValue", { length: 100 })
+    userId: int("user_id").references(() => users.id),
+    deviceId: int("device_id").references(() => devices.id)
 })

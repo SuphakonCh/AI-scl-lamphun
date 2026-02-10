@@ -1,83 +1,133 @@
 import { Elysia, t } from 'elysia'
+import { jwt } from '@elysiajs/jwt'
+import { and, eq, ne } from 'drizzle-orm/sql/expressions/conditions'
 import { db } from '../..'
-import { eq, or } from 'drizzle-orm/sql/expressions/conditions'
 import { users } from '../../db/schema'
 
-const userRoutes = new Elysia({
-  prefix: '/api/v2/user'
+const getBearerToken = (authHeader?: string) => {
+	if (!authHeader) return null
+	const [scheme, token] = authHeader.split(' ')
+	if (scheme !== 'Bearer' || !token) return null
+	return token
+}
+
+const userUpdateResponseSchema = t.Object({
+	code: t.Number(),
+	message: t.String()
 })
-.post(
-  '/register',
-  async ({ body }) => {
-    const { firstname, lastname, username, role, email, password } = body
-    const hashedPassword = await Bun.password.hash(password)
-    const database = await db
 
-    await database.insert(users).values({
-      firstname,
-      lastname,
-      username,
-      email,
-      role,
-      password: hashedPassword
-    })
+export const userRoutes = new Elysia({
+	prefix: '/api/v2/user'
+})
+	.use(
+		jwt({
+			name: 'jwt',
+			secret: process.env.JWT_SECRET ?? 'change-me'
+		})
+	)
+	.put(
+		'/',
+		async ({ body, headers, jwt }) => {
+			const token = getBearerToken(headers.authorization)
 
-    return {
-      status: 'User registered successfully'
-    }
-  },
-  {
-    body: t.Object({
-      firstname: t.String(),
-      lastname: t.String(),
-      username: t.String(),
-      role: t.String(),
-      email: t.String({ format: 'email' }),
-      password: t.String({ minLength: 8 })
-    })
-  }
-)
-.post(
-  '/login',
-  async ({ body }) => {
-    const { identifier, password } = body
-    const database = await db
+			if (!token) {
+				return {
+					code: 401,
+					message: 'Missing Authorization header'
+				}
+			}
 
-    const user = await database
-      .select()
-      .from(users)
-      .where(
-        or(
-          eq(users.username, identifier),
-          eq(users.email, identifier)
-        )
-      )
-      .limit(1)
+			const payload = await jwt.verify(token).catch(() => null)
 
-    if (user.length === 0 || !user[0].password) {
-      return new Response('User not found or password not set', { status: 404 })
-    }
+            if (!payload) {
+                return {
+                    code: 401,
+                    message: 'Invalid or expired token'
+                }
+            }
 
-    const valid = await Bun.password.verify(
-      password,
-      user[0].password
-    )
+			const updatePayload: {
+				firstname?: string
+				lastname?: string
+				username?: string
+				email?: string
+			} = {}
 
-    if (!valid) {
-      return new Response('Invalid password', { status: 401 })
-    }
+			if (body.firstname) updatePayload.firstname = body.firstname
+			if (body.lastname) updatePayload.lastname = body.lastname
+			if (body.username) updatePayload.username = body.username
+			if (body.email) updatePayload.email = body.email
 
-    return {
-      message: 'Login successful',
-      userId: user[0].id
-    }
-  },
-  {
-    body: t.Object({
-      identifier: t.String(),
-      password: t.String()
-    })
-  }
-)
+			if (Object.keys(updatePayload).length === 0) {
+				return {
+					code: 400,
+					message: 'No fields to update'
+				}
+			}
 
-export { userRoutes }
+			const database = await db
+
+			const existingUser = await database
+				.select()
+				.from(users)
+				.where(eq(users.id, body.id))
+				.limit(1)
+
+			if (existingUser.length === 0) {
+				return {
+					code: 404,
+					message: 'User not found'
+				}
+			}
+
+			if (body.username) {
+				const usernameTaken = await database
+					.select()
+					.from(users)
+					.where(and(eq(users.username, body.username), ne(users.id, body.id)))
+					.limit(1)
+
+				if (usernameTaken.length > 0) {
+					return {
+						code: 409,
+						message: 'Username already exists'
+					}
+				}
+			}
+
+			if (body.email) {
+				const emailTaken = await database
+					.select()
+					.from(users)
+					.where(and(eq(users.email, body.email), ne(users.id, body.id)))
+					.limit(1)
+
+				if (emailTaken.length > 0) {
+					return {
+						code: 409,
+						message: 'Email already exists'
+					}
+				}
+			}
+
+			await database.update(users).set(updatePayload).where(eq(users.id, body.id))
+
+			return {
+				code: 200,
+				message: 'ok'
+			}
+		},
+		{
+			headers: t.Object({
+				authorization: t.String()
+			}),
+			body: t.Object({
+				id: t.Number(),
+				firstname: t.Optional(t.String()),
+				lastname: t.Optional(t.String()),
+				username: t.Optional(t.String()),
+				email: t.Optional(t.String({ format: 'email' }))
+			}),
+			response: userUpdateResponseSchema
+		}
+	)

@@ -36,6 +36,14 @@ const Navbar = () => {
         
 
 function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userId, setUserId] = useState<number | null>(null);
+
+  const handleLoginSuccess = (id: number) => {
+    setUserId(id);
+    setIsLoggedIn(true);
+  };
+
   return (
 <BrowserRouter>
       
@@ -66,4 +74,4 @@ function App() {
   );
 }
 
-export default App
+export default App;

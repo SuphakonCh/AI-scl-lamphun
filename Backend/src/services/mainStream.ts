@@ -1,5 +1,6 @@
+import { sql } from 'drizzle-orm'
 import type { MySql2Database } from 'drizzle-orm/mysql2'
-import { deviceData } from '../db/schema'
+import { deviceData, devices } from '../db/schema'
 
 type MainStreamDevice = {
   deviceId: string
@@ -28,7 +29,19 @@ type MainStreamBatchResponse = {
   status: string
 }
 
+type MainStreamLatestResponse = {
+  code: number
+  monitorValue: string
+  monitorTime: string
+}
+
 const hourMs = 30 * 60 * 1000
+const deviceCacheTtlMs = Number(process.env.DEVICE_CACHE_TTL_MS ?? 300000)
+
+const deviceCache = {
+  devices: [] as MainStreamDevice[],
+  lastFetched: 0
+}
 
 const translateMainStreamMessage = (message: string) => {
   const translations: Record<string, string> = {
@@ -39,34 +52,87 @@ const translateMainStreamMessage = (message: string) => {
   return translations[message] ?? message
 }
 
-const buildDevicesFromEnv = (): MainStreamDevice[] => {
-  const devices: MainStreamDevice[] = []
+const toGmtPlus7 = (monitorTime: string) => {
+  const match = monitorTime.match(
+    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/
+  )
 
-  if (
-    process.env.water_monitor_id &&
-    process.env.water_monitor_secret_key &&
-    process.env.water_monitor_name
-  ) {
-    devices.push({
-      deviceId: process.env.water_monitor_id,
-      deviceSecretKey: process.env.water_monitor_secret_key,
-      monitorItem: process.env.water_monitor_name
-    })
+  if (!match) {
+    return monitorTime
   }
 
-  if (
-    process.env.rain_monitor_id &&
-    process.env.rain_monitor_secret_key &&
-    process.env.rain_monitor_name
-  ) {
-    devices.push({
-      deviceId: process.env.rain_monitor_id,
-      deviceSecretKey: process.env.rain_monitor_secret_key,
-      monitorItem: process.env.rain_monitor_name
-    })
+  const [datePart, timePart] = monitorTime.split(' ')
+  const [year, month, day] = datePart.split('-').map(Number)
+  const [hour, minute, second] = timePart.split(':')
+
+  const base = new Date(
+    Date.UTC(
+      year,
+      month - 1,
+      day,
+      Number(hour),
+      Number(minute),
+      Number(second)
+    )
+  )
+
+  if (Number.isNaN(base.getTime())) {
+    return monitorTime
   }
 
-  return devices
+  const shifted = new Date(base.getTime() + 7 * 60 * 60 * 1000)
+  const now = new Date()
+  const nowGmtPlus7 = new Date(now.getTime() + 7 * 60 * 60 * 1000)
+  let effective = shifted
+
+  if (shifted > nowGmtPlus7) {
+    let clampedByHour = new Date(
+      Date.UTC(
+        nowGmtPlus7.getUTCFullYear(),
+        nowGmtPlus7.getUTCMonth(),
+        nowGmtPlus7.getUTCDate(),
+        nowGmtPlus7.getUTCHours(),
+        shifted.getUTCMinutes(),
+        shifted.getUTCSeconds()
+      )
+    )
+    if (clampedByHour > nowGmtPlus7) {
+      clampedByHour = new Date(clampedByHour.getTime() - 60 * 60 * 1000)
+    }
+    effective = clampedByHour > nowGmtPlus7 ? nowGmtPlus7 : clampedByHour
+  }
+  const pad = (value: number) => String(value).padStart(2, '0')
+
+  return `${effective.getUTCFullYear()}-${pad(
+    effective.getUTCMonth() + 1
+  )}-${pad(effective.getUTCDate())} ${pad(
+    effective.getUTCHours()
+  )}:${pad(effective.getUTCMinutes())}:${pad(
+    effective.getUTCSeconds()
+  )}`
+}
+
+const loadDevicesFromDatabase = async (database: MySql2Database) => {
+  const rows = await database.select().from(devices)
+
+  return rows.flatMap((device) => {
+    if (!device.deviceId || !device.monitorItem || !device.deviceKey) {
+      return []
+    }
+
+    return [
+      {
+        deviceId: device.deviceId,
+        deviceSecretKey: device.deviceKey,
+        monitorItem: device.monitorItem
+      }
+    ]
+  })
+}
+
+const refreshDeviceCache = async (database: MySql2Database) => {
+  deviceCache.devices = await loadDevicesFromDatabase(database)
+  deviceCache.lastFetched = Date.now()
 }
 
 const fetchBatch = async (
@@ -85,7 +151,7 @@ const fetchBatch = async (
         deviceId,
         deviceSecretKey
       })),
-      monitorItem: devices.map((device) => device.monitorItem),
+      monitorItem: devices.map((device) => device.monitorItem).join(', '),
       start,
       end
     })
@@ -112,6 +178,44 @@ const fetchBatch = async (
   return (await response.json()) as MainStreamBatchResponse
 }
 
+const fetchLatest = async (
+  baseUrl: string,
+  device: MainStreamDevice
+): Promise<MainStreamLatestResponse> => {
+  const response = await fetch(`${baseUrl}/latest`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      deviceId: device.deviceId,
+      deviceSecretKey: device.deviceSecretKey,
+      monitorItem: device.monitorItem
+    })
+  })
+
+  if (!response.ok) {
+    return {
+      code: response.status,
+      monitorValue: '',
+      monitorTime: ''
+    }
+  }
+
+  const payload = await response.json()
+  const dataItem = payload?.data?.find(
+    (item: { data?: Array<{ monitorValue?: string; monitorTime?: string }> }) =>
+      Array.isArray(item.data) && item.data.length > 0
+  )?.data?.[0]
+
+  return {
+    code: typeof payload?.code === 'number' ? payload.code : response.status,
+    monitorValue: dataItem?.monitorValue ?? '',
+    monitorTime: dataItem?.monitorTime ?? ''
+  }
+}
+
+
 const storeBatch = async (
   database: MySql2Database,
   payload: MainStreamBatchResponse
@@ -131,7 +235,7 @@ const storeBatch = async (
     device.data.map((item) => ({
       deviceId: device.deviceId,
       monitorItem: item.monitorItem,
-      monitorTime: item.monitorTime,
+      monitorTime: toGmtPlus7(item.monitorTime),
       monitorValue: item.monitorValue,
     }))
   )
@@ -140,7 +244,36 @@ const storeBatch = async (
     return
   }
 
-  await database.insert(deviceData).values(rows)
+  await database
+    .insert(deviceData)
+    .values(rows)
+    .onDuplicateKeyUpdate({
+      set: { monitorValue: sql`monitorValue` }
+    })
+}
+
+const storeLatest = async (
+  database: MySql2Database,
+  device: MainStreamDevice,
+  payload: MainStreamLatestResponse
+) => {
+  if (!payload.monitorTime || !payload.monitorValue) {
+    return
+  }
+
+  const normalizedTime = toGmtPlus7(payload.monitorTime)
+
+  await database
+    .insert(deviceData)
+    .values({
+      deviceId: device.deviceId,
+      monitorItem: device.monitorItem,
+      monitorTime: normalizedTime,
+      monitorValue: payload.monitorValue
+    })
+    .onDuplicateKeyUpdate({
+      set: { monitorValue: sql`monitorValue` }
+    })
 }
 
 export const startMainStreamSync = (
@@ -148,15 +281,9 @@ export const startMainStreamSync = (
   intervalMs: number = hourMs
 ) => {
   const baseUrl = process.env.MAIN_STREAM_URL
-  const devices = buildDevicesFromEnv()
 
   if (!baseUrl) {
     console.warn('MAIN_STREAM_URL is not set. Main stream sync disabled.')
-    return
-  }
-
-  if (devices.length === 0) {
-    console.warn('No main stream devices configured. Main stream sync disabled.')
     return
   }
 
@@ -164,9 +291,31 @@ export const startMainStreamSync = (
     const end = Date.now()
     const start = end - hourMs
 
+    if (
+      deviceCache.devices.length === 0 ||
+      Date.now() - deviceCache.lastFetched > deviceCacheTtlMs
+    ) {
+      await refreshDeviceCache(database)
+    }
+
+    const devices = deviceCache.devices
+
+    if (devices.length === 0) {
+      console.warn('No main stream devices available. Sync skipped.')
+      return
+    }
+
     try {
       const payload = await fetchBatch(baseUrl, devices, start, end)
       await storeBatch(database, payload)
+      for (const device of devices) {
+        try {
+          const latestPayload = await fetchLatest(baseUrl, device)
+          await storeLatest(database, device, latestPayload)
+        } catch (error) {
+          console.error('Main stream latest sync failed', error)
+        }
+      }
       console.log('Main stream sync completed successfully')
     } catch (error) {
       console.error('Main stream sync failed', error)

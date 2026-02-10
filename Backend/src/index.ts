@@ -1,6 +1,7 @@
 import { Elysia } from "elysia";
+import { cors } from "@elysiajs/cors";
 import { authRoutes } from "./api/v2/auth";
-import { deviceV2Routes } from "./api/v2/device";
+import { deviceRoutes } from "./api/v2/device";
 import { userRoutes } from "./api/v2/user";
 import { initialize } from "./db/database";
 import { startMainStreamSync } from "./services/mainStream";
@@ -17,7 +18,12 @@ db
   });
 
 const app = new Elysia()
-  .use(deviceV2Routes)
+  .use(
+    cors({
+      origin: "*"
+    })
+  )
+  .use(deviceRoutes)
   .use(authRoutes)
   .use(userRoutes)
   .get("/", () => "Hello Elysia")
