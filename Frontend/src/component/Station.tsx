@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'; // 1. ต้อง import useState และ useEffect มาด้วย
 import { Search, MoreHorizontal } from 'lucide-react';
 // ตรวจสอบชื่อไฟล์ให้ดีว่าไฟล์ Station.ts หรือ Station.tsx อยู่โฟลเดอร์เดียวกันหรือไม่
-import { transformData, StationDaata, mockDatabaseData } from './Station'; 
+import { transformData, StationData, mockDatabaseData } from './Station.ts'; 
 
 const StationManagement: React.FC = () => {
   // -------------------------------------------------------
@@ -10,7 +10,7 @@ const StationManagement: React.FC = () => {
   
   // 2. ประกาศ State เพื่อเก็บข้อมูล stations
   // เริ่มต้นให้เป็น array ว่าง []
-  const [stations, setStations] = useState<StationDaata[]>([]);
+  const [stations, setStations] = useState<StationData[]>([]);
 
   // 3. ใช้ useEffect เพื่อดึงข้อมูลตอนโหลดหน้าเว็บครั้งแรก
   useEffect(() => {
@@ -26,17 +26,7 @@ const StationManagement: React.FC = () => {
   return (
     <div className="bg-gray-100 min-h-screen p-8 font-sans">
       
-      {/* --- ส่วน Header --- */}
-      <div className="bg-white rounded-xl shadow-sm overflow-hidden mb-6">
-        <div className="bg-[#1e3a8a] text-white p-4 font-bold text-lg">Water Flow</div>
-        <div className="flex justify-center space-x-4 p-4">
-           <button className="px-6 py-2 rounded-full text-gray-500">แดชบอร์ด</button>
-           <button className="px-6 py-2 rounded-full text-gray-500">แผนที่ GIS</button>
-           <button className="px-6 py-2 rounded-full bg-[#1e3a8a] text-white shadow-lg">ข้อมูลสถานี</button>
-           <button className="px-6 py-2 rounded-full text-gray-500">การตั้งค่า</button>
-        </div>
-      </div>
-
+    
       {/* --- Search Bar --- */}
       <div className="flex justify-between items-center mb-6">
         <div className="relative w-3/4">
@@ -51,55 +41,74 @@ const StationManagement: React.FC = () => {
       {/* --- ตารางข้อมูล --- */}
       <div className="w-full">
         {/* หัวตาราง */}
-        <div className="flex bg-[#5b6b88] text-white py-3 px-6 rounded-t-lg text-sm font-bold uppercase tracking-wide mb-4 shadow-md">
-          <div className="w-1/4 text-center">STATION NAME</div>
-          <div className="w-1/4 text-center">LOCATION</div>
-          <div className="w-1/6 text-center">STATUS</div>
-          <div className="w-1/6 text-center">DATE</div>
-          <div className="w-1/6 text-center">ACTION</div>
-        </div>
+    <thead  className="bg-[#5b6b88] text-white text-sm font-bold uppercase tracking-wide">
+      <tr>
+        <th className="py-3 px-6 text-center w-1/4">STATION NAME</th>
+        <th className="py-3 px-6 text-center w-1/4">LOCATION</th>
+        <th className="py-3 px-6 text-center w-1/6">STATUS</th>
+        <th className="py-3 px-6 text-center w-1/6">DATE</th>
+        <th className="py-3 px-6 text-center w-1/6">ACTION</th>
+      </tr>
+    </thead>
 
-        {/* --- Loop ข้อมูล --- */}
-        <div className="space-y-3">
-          {/* ตอนนี้ stations มีค่าแล้ว เพราะเราสั่ง setStations ใน useEffect */}
-          {stations.map((item, index) => (
-            // แนะนำให้ใช้ item.id เป็น key ถ้าไม่มีให้ใช้ index (แต่ id ดีที่สุด)
-            <div key={item.id || index} className="flex items-center bg-white py-4 px-6 rounded-full shadow-md hover:shadow-lg transition-all">
-              
-              <div className="w-1/4 text-center font-bold text-gray-800">
-                {item.name}
-              </div>
 
-              <div className="w-1/4 text-center text-gray-800 font-medium">
-                {item.location}
-              </div>
+      <div className="w-full bg-white rounded-b-lg shadow-md overflow-hidden"> 
+  <table className="w-full table-auto">
+    <tbody className="text-gray-600 text-sm font-light">
+      {stations.map((item, index) => (
+        <tr 
+          key={item.id || index} 
+          className="border-b border-gray-200 hover:bg-gray-50 transition-colors duration-200"
+        >
+          
+          {/* 1. Station Name */}
+          <td className="py-4 px-6 text-center font-bold text-gray-800 w-1/4">
+            {item.name}
+          </td>
 
-              <div className="w-1/6 flex justify-center">
-                <div className="flex items-center bg-gray-100 rounded-full px-4 py-1 shadow-inner">
+          {/* 2. Location */}
+          <td className="py-4 px-6 text-center text-gray-800 font-medium w-1/4">
+            {item.location}
+          </td>
+
+          {/* 3. Status */}
+          <td className="py-4 px-6 w-1/6">
+            <div className="flex items-center justify-center">
+               <div className="flex items-center bg-gray-100 rounded-full px-4 py-1 shadow-sm border border-gray-100">
                   <span className={`w-3 h-3 rounded-full mr-2 ${
-                      item.status === 'normal' ? 'bg-green-500' : 'bg-gray-500'
+                      item.status === 'normal' ? 'bg-green-500' : 'bg-gray-400'
                   }`}></span>
-                  <span className="text-sm font-bold text-gray-600 uppercase">
+                  <span className={`text-xs font-bold uppercase ${
+                      item.status === 'normal' ? 'text-green-700' : 'text-gray-500'
+                  }`}>
                       {item.status === 'normal' ? 'online' : 'offline'}
                   </span>
-                </div>
-              </div>
-
-              <div className="w-1/6 text-center font-bold text-gray-700">
-                {/* ตรวจสอบว่า date ไม่ใช่ null ก่อนเรียกใช้ฟังก์ชัน */}
-                {item.date ? item.date.toLocaleDateString('th-TH') : '-'}
-              </div>
-
-              <div className="w-1/6 flex justify-center text-gray-400 cursor-pointer">
-                <MoreHorizontal />
-              </div>
-
+               </div>
             </div>
-          ))}
+          </td>
+
+
+          {/* 4. Date */}
+          <td className="py-4 px-6 text-center font-bold text-gray-700 w-1/6">
+            {item.date ? item.date.toLocaleDateString('th-TH') : '-'}
+          </td>
+
+          {/* 5. Action */}
+          <td className="py-4 px-6 w-1/6 text-center">
+            <div className="flex items-center justify-center text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">
+              <MoreHorizontal size={20} />
+            </div>
+          </td>
+
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
         </div>
       </div>
 
-    </div>
+   
   );
 };
 

@@ -10,7 +10,7 @@ export interface DeviceData {
   };
 }
 
-export interface StationDaata {
+export interface StationData {
   // แก้จุดที่ 1: เปลี่ยน id เป็น string เพื่อรับ deviceId ได้
   id?: string; 
   
@@ -26,7 +26,7 @@ export interface StationDaata {
   action: number | null;
 }
 
-export const transformData = (dvData: DeviceData[]): StationDaata[] => {
+export const transformData = (dvData: DeviceData[]): StationData[] => {
   return dvData.map((item) => {
     
     // แก้จุดที่ 2: จัดการ Location ให้ปลอดภัยขึ้น
