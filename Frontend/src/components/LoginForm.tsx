@@ -5,6 +5,15 @@ interface LoginFormProps {
     onLoginSuccess?: (userId: number) => void;
 }
 
+interface LoginResponse {
+    accessToken: string;
+    refreshToken: string;
+    user: {
+        id: number;
+        username: string;
+    }
+}
+
 export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
     const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
@@ -17,7 +26,7 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
         setIsLoading(true);
 
         try {
-            const response = await fetch('/api/v2/auth/login', {
+            const response = await fetch('http://100.112.255.31:3000/api/v2/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -30,13 +39,19 @@ export default function LoginForm({ onLoginSuccess }: LoginFormProps) {
                 throw new Error(errorText || 'เข้าสู่ระบบไม่สำเร็จ');
             }
 
-            const data = await response.json();
+            const data: LoginResponse = await response.json();
             
+            console.log('Login Success:', data);
+
+            localStorage.setItem('accessToken', data.accessToken);
+            localStorage.setItem('refreshToken', data.refreshToken);
+
             if (onLoginSuccess) {
-                onLoginSuccess(data.userId);
+                onLoginSuccess(data.user.id);
             }
 
         } catch (err: any) {
+            console.error(err);
             setError(err.message);
         } finally {
             setIsLoading(false);
