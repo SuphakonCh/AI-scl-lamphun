@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import WaterLevelChart from './component/WaterLevelChart'; 
-import DataCard from './component/DataCard';
-import StatusCard from './component/StatusCard';
-import Header from './component/Header';
-import StationManagement from './components/Station.ts'
+import WaterLevelChart from './components/WaterLevelChart.tsx'; 
+import DataCard from './components/DataCard.tsx';
+import StatusCard from './components/StatusCard.tsx';
+import Header from './components/Header.tsx';
+import StationManagement from './components/Station.tsx'
 import {BrowserRouter, Routes, Route, Link} from "react-router-dom"
 import { Home } from 'lucide-react';
 import Homepage from './components/็Home.tsx';
