@@ -8,6 +8,7 @@
   height: 166px;
   gap: 26px; /* ระยะห่างระหว่างหัวข้อ กับ ตัวเลข */
   padding: 38px 27px; /* Padding ตามรูป Figma */
+  margin: 18px;
   
   /* --- Style (อิงตาม Global Design System) --- */
   background: var(--color-surface);

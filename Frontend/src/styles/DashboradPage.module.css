@@ -1,0 +1,25 @@
+.container {
+  padding: 20px;
+}
+
+.cardGrid {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-bottom: 40px;
+  justify-content: center;
+}
+
+.chartSection {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* แบ่งคอลลัมน์ */
+  margin-left: 24px;
+  gap: 24px;
+}
+
+/* Responsive สำหรับหน้าจอเล็ก */
+@media (max-width: 1024px) {
+  .chartSection {
+    grid-template-columns: 1fr; 
+  }
+}
