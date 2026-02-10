@@ -3,10 +3,10 @@ import WaterLevelChart from './component/WaterLevelChart';
 import DataCard from './component/DataCard';
 import StatusCard from './component/StatusCard';
 import Header from './component/Header';
-import StationManagement from './component/Station.tsx'
+import StationManagement from './components/Station.tsx'
 import {BrowserRouter, Routes, Route, Link} from "react-router-dom"
 import { Home } from 'lucide-react';
-import Homepage from './component/็Home.tsx';
+import Homepage from './components/็Home.tsx';
 
 const Dashboard = () => {
   return (

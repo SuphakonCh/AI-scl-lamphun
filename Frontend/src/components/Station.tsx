@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'; // 1. ต้อง import useState และ useEffect มาด้วย
 import { Search, MoreHorizontal } from 'lucide-react';
 // ตรวจสอบชื่อไฟล์ให้ดีว่าไฟล์ Station.ts หรือ Station.tsx อยู่โฟลเดอร์เดียวกันหรือไม่
-import { transformData, StationData, mockDatabaseData } from './Station.ts'; 
+import { transformData, StationData, mockDatabaseData } from './Station.tsx'; 
 
 const StationManagement: React.FC = () => {
   // -------------------------------------------------------
