@@ -3,50 +3,66 @@ import WaterLevelChart from './component/WaterLevelChart';
 import DataCard from './component/DataCard';
 import StatusCard from './component/StatusCard';
 import Header from './component/Header';
+import StationManagement from './component/Station.tsx'
+import {BrowserRouter, Routes, Route, Link} from "react-router-dom"
+import { Home } from 'lucide-react';
+import Homepage from './component/็Home.tsx';
+
+const Dashboard = () => {
+  return (
+    <div className="dashboard-container">
+      {/* ใส่กราฟหรือข้อมูลที่คุณต้องการโชว์ในหน้าแรกตรงนี้ */}      
+      <WaterLevelChart />
+    </div>
+  );
+};
+  
+const Navbar = () => {
+  return (
+    <nav className="bg-blue-900 text-white p-4 flex gap-4 mb-4 rounded-lg">
+      <Link to="/" className="hover:text-blue-200 font-bold">
+        <p className='name-page'>แดชบอร์ด</p>
+        <p className='name-page under'>ภาพรวมของระบบ</p>
+      </Link>
+      <Link to="/station" className="hover:text-blue-200 font-bold">
+        <p className='name-page'>ข้อมูลสถานี</p>
+        <p className='name-page under'>ข้อมูลโดยละเอียด</p>
+      </Link>
+    </nav>
+  );
+};
+     //<Link to ="/WaterLevelChart">WaterLevelChart</Link>  
+     //<Route path='/WaterLevelChart' element={<WaterLevelChart/>}
+        
 
 function App() {
   return (
-    <>
-      <Header />
+<BrowserRouter>
       
-      <div style={{ marginBottom: '32px' }}>
-        <h1 className="text-h1" style={{ color: 'var(--color-brand)', marginBottom: '8px' }}>
-          Lamphun Smart Water
-        </h1>
-        <p className="text-default" style={{ color: 'var(--text-secondary)' }}>
-          ระบบบริหารจัดการน้ำและแจ้งเตือนภัยพิบัติอัจฉริยะ อบจ.ลำพูน
-        </p>
-      </div>
-      <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap', marginBottom: '40px' }}>
+      <div className="p-4"> {/* Container หลัก */}
+        <Header />
         
-        {/* ใบที่ 1 */}
-        <DataCard 
-            title="จำนวนสถานี" 
-            value={1} 
-            unit="สถานี" 
-            theme="orange" 
-        />
-      {/* ใบที่ 2 */}
-      <DataCard 
-       title="ระดับน้ำ" 
-                  value="150.250" 
-                  unit="เมตร" 
-                  theme="blue" 
-              />
-        {/* ใบที่ 3 */}
-       <DataCard 
-       title="ปริมาณน้ำฝนสะสม" 
-       value="50.568" 
-       unit="มิลลิเมตร/ชม." 
-                  theme="blue" 
-              />
+        {/* ใส่ Navbar ตรงนี้ เพื่อให้ทุกหน้ามองเห็นเมนู */}
+        <Navbar />
+
+        <div style={{ marginBottom: '32px' }}>
+          <h1 className="text-2xl font-bold text-blue-800 mb-4">
+            Lamphun Smart Water
+          </h1>
+
+          <div className="content-area bg-white p-6 rounded-lg shadow-sm">
+            {/* 4. กำหนด Routes */}
+            <Routes>
+              {/* หน้าแรก: ให้ไปที่ Dashboard Component ที่เราสร้างใหม่ด้านบน */}
+              <Route path='/' element={<Dashboard />} />
               
-            </div>
-      {/* --- พื้นที่วางกราฟ --- */}
-      <div style={{ display: 'grid', gap: '24px' }}>
-      <WaterLevelChart />
+              {/* หน้า Station: ลิงก์ไปหาไฟล์ StationManagement */}
+              <Route path='/station' element={<StationManagement />} />
+            </Routes>
+          </div>
+        </div>
       </div>
-    </>
+ </BrowserRouter>     
   );
 }
 
