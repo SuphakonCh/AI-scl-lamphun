@@ -17,6 +17,21 @@
   gap: 24px;
 }
 
+.chartWrapper {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mapWrapper {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  height: 450px;
+}
+
 /* Responsive สำหรับหน้าจอเล็ก */
 @media (max-width: 1024px) {
   .chartSection {

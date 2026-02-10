@@ -2,6 +2,7 @@ import WaterLevelChart from '../components/WaterLevelChart';
 import DataCard from '../components/DataCard';
 import Header from '../components/Header';
 import styles from '../styles/DashboradPage.module.css';
+import MapView  from '../components/MapView';
 
 function DashboardPage(){
     return(
@@ -29,10 +30,21 @@ function DashboardPage(){
                 />
                       
             </div>
-      {/* --- พื้นที่วางกราฟ --- */}
+      {/* --- พื้นที่วางกราฟ + แผนที่ --- */}
       <div className={styles.chartSection}>
-      <WaterLevelChart />
+        <div className={styles.chartWrapper}>
+          <WaterLevelChart />
+        </div>
+        
+        <div className={styles.mapWrapper}>
+          <MapView 
+            latitude={18.598917} 
+            longitude={99.031917} 
+            stationName="สถานีตรวจวัดลำพูน" 
+          />
+        </div>
       </div>
+
     </>
     );
 }
