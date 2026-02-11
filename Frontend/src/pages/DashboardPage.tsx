@@ -1,11 +1,20 @@
 import WaterLevelChart from '../components/WaterLevelChart';
 import DataCard from '../components/DataCard';
 import styles from '../styles/DashboradPage.module.css';
-import MapView  from '../components/MapView';
+import Navbar from '../components/Navbar';
 
+//import Station from '../pages/Station.tsx'
+//import { Routes, Route } from "react-router-dom";
+
+//<Navbar/>
 function DashboardPage(){
     return(
         <>
+
+    <div className='nevbar'>
+<Navbar />
+    </div>
+
       <div className={styles.cardGrid}>
         
                 <DataCard 
