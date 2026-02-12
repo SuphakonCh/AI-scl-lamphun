@@ -1,6 +1,6 @@
-import { sql } from 'drizzle-orm'
-import type { MySql2Database } from 'drizzle-orm/mysql2'
-import { deviceData, devices } from '../db/schema'
+import { eq, sql } from 'drizzle-orm'
+import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
+import { cacheEntries, deviceData, devices } from '../db/schema'
 
 type MainStreamDevice = {
   deviceId: string
@@ -37,18 +37,27 @@ type MainStreamLatestResponse = {
 
 const hourMs = 30 * 60 * 1000
 const deviceCacheTtlMs = Number(process.env.DEVICE_CACHE_TTL_MS ?? 300000)
-
-const deviceCache = {
-  devices: [] as MainStreamDevice[],
-  lastFetched: 0
-}
+const deviceCacheKey = 'main_stream_devices'
 
 const isConnectionLostError = (error: unknown) => {
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
+
+  const code = 'code' in error ? String((error as { code?: string }).code) : ''
+  const message =
+    'message' in error
+      ? String((error as { message?: string }).message).toLowerCase()
+      : ''
+
   return (
-    typeof error === 'object' &&
-    error !== null &&
-    'code' in error &&
-    (error as { code?: string }).code === 'PROTOCOL_CONNECTION_LOST'
+    code === 'PROTOCOL_CONNECTION_LOST' ||
+    code === 'ECONNRESET' ||
+    code === '57P01' ||
+    code === '57P02' ||
+    code === '57P03' ||
+    message.includes('connection terminated') ||
+    message.includes('connection closed')
   )
 }
 
@@ -57,7 +66,7 @@ const sleep = (ms: number) =>
     setTimeout(resolve, ms)
   })
 
-const warmUpDatabase = async (database: MySql2Database) => {
+const warmUpDatabase = async (database: PostgresJsDatabase) => {
   try {
     await database.execute(sql`select 1`)
   } catch (error) {
@@ -78,67 +87,21 @@ const translateMainStreamMessage = (message: string) => {
   return translations[message] ?? message
 }
 
-const toGmtPlus7 = (monitorTime: string) => {
-  const match = monitorTime.match(
-    /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/
+const isMainStreamDevice = (value: unknown): value is MainStreamDevice => {
+  if (typeof value !== 'object' || value === null) {
+    return false
+  }
+
+  const candidate = value as Record<string, unknown>
+
+  return (
+    typeof candidate.deviceId === 'string' &&
+    typeof candidate.deviceSecretKey === 'string' &&
+    typeof candidate.monitorItem === 'string'
   )
-
-  if (!match) {
-    return monitorTime
-  }
-
-  const [datePart, timePart] = monitorTime.split(' ')
-  const [year, month, day] = datePart.split('-').map(Number)
-  const [hour, minute, second] = timePart.split(':')
-
-  const base = new Date(
-    Date.UTC(
-      year,
-      month - 1,
-      day,
-      Number(hour),
-      Number(minute),
-      Number(second)
-    )
-  )
-
-  if (Number.isNaN(base.getTime())) {
-    return monitorTime
-  }
-
-  const shifted = new Date(base.getTime() + 7 * 60 * 60 * 1000)
-  const now = new Date()
-  const nowGmtPlus7 = new Date(now.getTime() + 7 * 60 * 60 * 1000)
-  let effective = shifted
-
-  if (shifted > nowGmtPlus7) {
-    let clampedByHour = new Date(
-      Date.UTC(
-        nowGmtPlus7.getUTCFullYear(),
-        nowGmtPlus7.getUTCMonth(),
-        nowGmtPlus7.getUTCDate(),
-        nowGmtPlus7.getUTCHours(),
-        shifted.getUTCMinutes(),
-        shifted.getUTCSeconds()
-      )
-    )
-    if (clampedByHour > nowGmtPlus7) {
-      clampedByHour = new Date(clampedByHour.getTime() - 60 * 60 * 1000)
-    }
-    effective = clampedByHour > nowGmtPlus7 ? nowGmtPlus7 : clampedByHour
-  }
-  const pad = (value: number) => String(value).padStart(2, '0')
-
-  return `${effective.getUTCFullYear()}-${pad(
-    effective.getUTCMonth() + 1
-  )}-${pad(effective.getUTCDate())} ${pad(
-    effective.getUTCHours()
-  )}:${pad(effective.getUTCMinutes())}:${pad(
-    effective.getUTCSeconds()
-  )}`
 }
 
-const loadDevicesFromDatabase = async (database: MySql2Database) => {
+const loadDevicesFromDatabase = async (database: PostgresJsDatabase) => {
   const rows = await database.select().from(devices)
 
   return rows.flatMap((device) => {
@@ -156,20 +119,94 @@ const loadDevicesFromDatabase = async (database: MySql2Database) => {
   })
 }
 
-const refreshDeviceCache = async (database: MySql2Database) => {
-  deviceCache.devices = await loadDevicesFromDatabase(database)
-  deviceCache.lastFetched = Date.now()
+const loadDevicesFromCache = async (
+  database: PostgresJsDatabase
+): Promise<MainStreamDevice[] | null> => {
+  const rows = await database
+    .select({
+      value: cacheEntries.value,
+      expiresAt: cacheEntries.expiresAt
+    })
+    .from(cacheEntries)
+    .where(eq(cacheEntries.key, deviceCacheKey))
+    .limit(1)
+
+  if (rows.length === 0) {
+    return null
+  }
+
+  const [row] = rows
+
+  if (row.expiresAt && row.expiresAt.getTime() <= Date.now()) {
+    return null
+  }
+
+  const cachedDevices = row.value['devices']
+
+  if (!Array.isArray(cachedDevices)) {
+    return null
+  }
+
+  const parsedDevices = cachedDevices.flatMap((item) =>
+    isMainStreamDevice(item) ? [item] : []
+  )
+
+  if (parsedDevices.length !== cachedDevices.length) {
+    return null
+  }
+
+  return parsedDevices
 }
 
-const refreshDeviceCacheWithRetry = async (database: MySql2Database) => {
+const writeDevicesToCache = async (
+  database: PostgresJsDatabase,
+  mainStreamDevices: MainStreamDevice[]
+) => {
+  const now = new Date()
+  const expiresAt = new Date(now.getTime() + deviceCacheTtlMs)
+
+  await database
+    .insert(cacheEntries)
+    .values({
+      key: deviceCacheKey,
+      value: {
+        devices: mainStreamDevices
+      },
+      expiresAt,
+      updatedAt: now
+    })
+    .onConflictDoUpdate({
+      target: cacheEntries.key,
+      set: {
+        value: {
+          devices: mainStreamDevices
+        },
+        expiresAt,
+        updatedAt: now
+      }
+    })
+}
+
+const getDevicesWithCache = async (database: PostgresJsDatabase) => {
+  const cachedDevices = await loadDevicesFromCache(database)
+  if (cachedDevices !== null) {
+    return cachedDevices
+  }
+
+  const freshDevices = await loadDevicesFromDatabase(database)
+  await writeDevicesToCache(database, freshDevices)
+  return freshDevices
+}
+
+const getDevicesWithCacheAndRetry = async (database: PostgresJsDatabase) => {
   try {
-    await refreshDeviceCache(database)
+    return await getDevicesWithCache(database)
   } catch (error) {
     if (!isConnectionLostError(error)) {
       throw error
     }
     await sleep(1000)
-    await refreshDeviceCache(database)
+    return await getDevicesWithCache(database)
   }
 }
 
@@ -220,10 +257,13 @@ const fetchLatest = async (
   baseUrl: string,
   device: MainStreamDevice
 ): Promise<MainStreamLatestResponse> => {
-  const response = await fetch(`${baseUrl}/latest`, {
+  const response = await fetch(`${baseUrl}/latest?ts=${Date.now()}`, {
     method: 'POST',
+    cache: 'no-store',
     headers: {
-      'content-type': 'application/json'
+      'content-type': 'application/json',
+      'cache-control': 'no-cache, no-store, max-age=0',
+      pragma: 'no-cache'
     },
     body: JSON.stringify({
       deviceId: device.deviceId,
@@ -255,7 +295,7 @@ const fetchLatest = async (
 
 
 const storeBatch = async (
-  database: MySql2Database,
+  database: PostgresJsDatabase,
   payload: MainStreamBatchResponse
 ) => {
   if (!payload || !Array.isArray(payload.data)) {
@@ -270,12 +310,26 @@ const storeBatch = async (
   }
 
   const rows = payload.data.flatMap((device) =>
-    device.data.map((item) => ({
-      deviceId: device.deviceId,
-      monitorItem: item.monitorItem,
-      monitorTime: toGmtPlus7(item.monitorTime),
-      monitorValue: item.monitorValue,
-    }))
+    device.data.flatMap((item) => {
+      try {
+        return [
+          {
+            deviceId: device.deviceId,
+            monitorItem: item.monitorItem,
+            monitorTime: utcStringToUtcPlus7(item.monitorTime),
+            monitorValue: item.monitorValue
+          }
+        ]
+      } catch (error) {
+        console.warn('Skipping main stream record due to invalid monitorTime', {
+          deviceId: device.deviceId,
+          monitorItem: item.monitorItem,
+          monitorTime: item.monitorTime,
+          error: error instanceof Error ? error.message : String(error)
+        })
+        return []
+      }
+    })
   )
 
   if (rows.length === 0) {
@@ -285,13 +339,14 @@ const storeBatch = async (
   await database
     .insert(deviceData)
     .values(rows)
-    .onDuplicateKeyUpdate({
-      set: { monitorValue: sql`monitorValue` }
+    .onConflictDoUpdate({
+      target: [deviceData.deviceId, deviceData.monitorTime],
+      set: { monitorValue: sql`excluded."monitorValue"` }
     })
 }
 
 const storeLatest = async (
-  database: MySql2Database,
+  database: PostgresJsDatabase,
   device: MainStreamDevice,
   payload: MainStreamLatestResponse
 ) => {
@@ -299,7 +354,18 @@ const storeLatest = async (
     return
   }
 
-  const normalizedTime = toGmtPlus7(payload.monitorTime)
+  let normalizedTime: string
+  try {
+    normalizedTime = utcStringToUtcPlus7(payload.monitorTime)
+  } catch (error) {
+    console.warn('Skipping latest main stream record due to invalid monitorTime', {
+      deviceId: device.deviceId,
+      monitorItem: device.monitorItem,
+      monitorTime: payload.monitorTime,
+      error: error instanceof Error ? error.message : String(error)
+    })
+    return
+  }
 
   await database
     .insert(deviceData)
@@ -309,13 +375,14 @@ const storeLatest = async (
       monitorTime: normalizedTime,
       monitorValue: payload.monitorValue
     })
-    .onDuplicateKeyUpdate({
-      set: { monitorValue: sql`monitorValue` }
+    .onConflictDoUpdate({
+      target: [deviceData.deviceId, deviceData.monitorTime],
+      set: { monitorValue: sql`excluded."monitorValue"` }
     })
 }
 
 export const startMainStreamSync = (
-  database: MySql2Database,
+  database: PostgresJsDatabase,
   intervalMs: number = hourMs
 ) => {
   const baseUrl = process.env.MAIN_STREAM_URL
@@ -330,24 +397,17 @@ export const startMainStreamSync = (
     const end = Date.now()
     const start = end - hourMs
 
-    if (
-      deviceCache.devices.length === 0 ||
-      Date.now() - deviceCache.lastFetched > deviceCacheTtlMs
-    ) {
-      await refreshDeviceCacheWithRetry(database)
-    }
+    const mainStreamDevices = await getDevicesWithCacheAndRetry(database)
 
-    const devices = deviceCache.devices
-
-    if (devices.length === 0) {
+    if (mainStreamDevices.length === 0) {
       console.warn('No main stream devices available. Sync skipped.')
       return
     }
 
     try {
-      const payload = await fetchBatch(baseUrl, devices, start, end)
+      const payload = await fetchBatch(baseUrl, mainStreamDevices, start, end)
       await storeBatch(database, payload)
-      for (const device of devices) {
+      for (const device of mainStreamDevices) {
         try {
           const latestPayload = await fetchLatest(baseUrl, device)
           await storeLatest(database, device, latestPayload)
@@ -363,3 +423,105 @@ export const startMainStreamSync = (
   void runSync()
   setInterval(runSync, intervalMs)
 }
+
+const bangkokFormatter = new Intl.DateTimeFormat("sv-SE", {
+  timeZone: "Asia/Bangkok",
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+export const toUtcPlus7String = (epochMs: number) =>
+  bangkokFormatter.format(new Date(epochMs));
+
+const clampToNow = (date: Date) => {
+  const now = Date.now();
+  if (date.getTime() > now) {
+    return new Date(now);
+  }
+  return date;
+};
+
+export const utcStringToUtcPlus7 = (s: string) => {
+  const value = s.trim();
+  if (/^\d{10,13}$/.test(value)) {
+    const epochMs = value.length === 13 ? Number(value) : Number(value) * 1000
+    if (Number.isNaN(epochMs)) {
+      throw new Error("Invalid datetime format");
+    }
+    return toUtcPlus7String(clampToNow(new Date(epochMs)).getTime());
+  }
+
+  const m = value.match(
+    /^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})[ T](\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.(\d{1,3}))?(?:\s?(Z|[+\-]\d{2}:?\d{2}))?$/
+  );
+
+  if (!m) throw new Error("Invalid datetime format");
+
+  const [, yRaw, moRaw, dRaw, hRaw, miRaw, seRaw, msRaw, tzRaw] = m;
+  const y = Number(yRaw);
+  const mo = Number(moRaw);
+  const d = Number(dRaw);
+  const h = Number(hRaw);
+  const mi = Number(miRaw);
+  const se = Number(seRaw ?? '0');
+  const ms = msRaw ? msRaw.padEnd(3, "0") : "000";
+  if (!tzRaw) {
+    const validationDate = new Date(
+      Date.UTC(
+        y,
+        mo - 1,
+        d,
+        h,
+        mi,
+        se,
+        Number(ms)
+      )
+    );
+
+    const isValid =
+      !Number.isNaN(validationDate.getTime()) &&
+      validationDate.getUTCFullYear() === y &&
+      validationDate.getUTCMonth() + 1 === mo &&
+      validationDate.getUTCDate() === d &&
+      validationDate.getUTCHours() === h &&
+      validationDate.getUTCMinutes() === mi &&
+      validationDate.getUTCSeconds() === se;
+
+    if (!isValid) {
+      throw new Error("Invalid datetime format");
+    }
+
+    // No timezone in source value means Mainstream clock time is UTC+8.
+    // Convert UTC+8 -> UTC -> format in Bangkok time (UTC+7).
+    const bangkokEpoch = Date.UTC(
+      y,
+      mo - 1,
+      d,
+      h - 8,
+      mi,
+      se,
+      Number(ms)
+    );
+    return toUtcPlus7String(clampToNow(new Date(bangkokEpoch)).getTime());
+  }
+
+  const tz = tzRaw.includes(":") || tzRaw === "Z"
+    ? tzRaw
+    : `${tzRaw.slice(0, 3)}:${tzRaw.slice(3)}`;
+  const pad2 = (n: number) => String(n).padStart(2, '0')
+  const date = new Date(
+    `${String(y).padStart(4, '0')}-${pad2(mo)}-${pad2(d)}T${pad2(h)}:${pad2(
+      mi
+    )}:${pad2(se)}.${ms}${tz}`
+  );
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Invalid datetime format");
+  }
+
+  return toUtcPlus7String(clampToNow(date).getTime());
+};
