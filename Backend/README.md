@@ -1,15 +1,33 @@
-# Elysia with Bun runtime
+# Backend (Elysia + PostgreSQL)
 
-## Getting Started
-To get started with this template, simply paste this command into your terminal:
+## Prerequisites
+- Bun
+- Docker (for local PostgreSQL)
+
+## Run PostgreSQL locally
 ```bash
-bun create elysia ./elysia-example
+docker compose up -d db
 ```
 
-## Development
-To start the development server run:
+## Environment
+Use `.env` with PostgreSQL values:
+- `DB_HOST=127.0.0.1`
+- `DB_PORT=5432`
+- `DB_USERNAME=user`
+- `DB_PASSWORD=adminUser123`
+- `DB_DATABASE=mydb`
+- `DB_SSL=false`
+
+## Install and run
 ```bash
+bun install
 bun run dev
 ```
 
-Open http://localhost:3000/ with your browser to see the result.
+The service will create required tables at startup, including `cache_entries` for persistent cache storage in PostgreSQL.
+
+## Build and start server
+```bash
+bun run build
+bun run start
+```

@@ -1,0 +1,32 @@
+# Use root/example as user/password credentials
+
+services:
+  backend:
+    image: oven/bun:1
+    working_dir: /app
+    restart: always
+    command: sh -c "bun install && bun run src/index.ts"
+    depends_on:
+      - db
+    env_file:
+      - .env
+    environment:
+      DB_HOST: db
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./:/app
+
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: adminUser123
+      POSTGRES_DB: mydb
+    volumes:
+      - data:/var/lib/postgresql/data
+
+volumes:
+  data:
+    driver: local

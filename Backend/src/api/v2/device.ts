@@ -4,6 +4,7 @@ import { sql } from 'drizzle-orm'
 import { and, eq } from 'drizzle-orm/sql/expressions/conditions'
 import { db } from '../..'
 import { deviceData, deviceOwners, devices } from '../../db/schema'
+import { toUtcPlus7String, utcStringToUtcPlus7 } from '../../services/mainStream'
 
 const deviceDataItem = t.Object({
   monitorItem: t.String(),
@@ -41,7 +42,7 @@ const deviceInfoResponseSchema = t.Object({
   customName: t.String(),
   deviceLocation: t.Object({
     latitude: t.String(),
-    longtitude: t.String()
+    longitude: t.String()
   })
 })
 
@@ -87,18 +88,6 @@ const deviceBatchRangeResponseSchema = t.Object({
   )
 })
 
-const toGmtPlus7String = (timestamp: number) => {
-  const ms = timestamp < 1_000_000_000_000 ? timestamp * 1000 : timestamp
-  const shifted = new Date(ms + 7 * 60 * 60 * 1000)
-  const pad = (value: number) => String(value).padStart(2, '0')
-
-  return `${shifted.getUTCFullYear()}-${pad(
-    shifted.getUTCMonth() + 1
-  )}-${pad(shifted.getUTCDate())} ${pad(
-    shifted.getUTCHours()
-  )}:${pad(shifted.getUTCMinutes())}:${pad(shifted.getUTCSeconds())}`
-}
-
 export const deviceRoutes = new Elysia({
   prefix: '/api/v2/device'
 })
@@ -135,6 +124,7 @@ export const deviceRoutes = new Elysia({
         deviceSecretKey,
         monitorItem,
         customName,
+        warningLevel,
         deviceLocation
       } = body
 
@@ -171,6 +161,7 @@ export const deviceRoutes = new Elysia({
           monitorItem,
           customName: customName ?? null,
           deviceName: null,
+          warningLevel: warningLevel ?? 0,
           latitude: deviceLocation?.latitude ?? null,
           longitude: deviceLocation?.longtitude ?? null
         })
@@ -223,6 +214,7 @@ export const deviceRoutes = new Elysia({
         deviceSecretKey: t.String(),
         monitorItem: t.String(),
         customName: t.Optional(t.String()),
+        warningLevel: t.Optional(t.Integer()),
         deviceLocation: t.Optional(
           t.Object({
             latitude: t.String(),
@@ -243,9 +235,10 @@ export const deviceRoutes = new Elysia({
         return {
           monitorName: '',
           customName: '',
+          warningLevel: 0,
           deviceLocation: {
             latitude: '',
-            longtitude: ''
+            longitude: ''
           }
         }
       }
@@ -257,9 +250,10 @@ export const deviceRoutes = new Elysia({
         return {
           monitorName: '',
           customName: '',
+          warningLevel: 0,
           deviceLocation: {
             latitude: '',
-            longtitude: ''
+            longitude: ''
           }
         }
       }
@@ -280,9 +274,10 @@ export const deviceRoutes = new Elysia({
         return {
           monitorName: '',
           customName: '',
+          warningLevel: 0,
           deviceLocation: {
             latitude: '',
-            longtitude: ''
+            longitude: ''
           }
         }
       }
@@ -303,9 +298,10 @@ export const deviceRoutes = new Elysia({
         return {
           monitorName: '',
           customName: '',
+          warningLevel: 0,
           deviceLocation: {
             latitude: '',
-            longtitude: ''
+            longitude: ''
           }
         }
       }
@@ -313,9 +309,10 @@ export const deviceRoutes = new Elysia({
       return {
         monitorName: deviceRecord.monitorItem ?? '',
         customName: deviceRecord.customName ?? '',
+        warningLevel: deviceRecord.warningLevel ?? 0,
         deviceLocation: {
           latitude: deviceRecord.latitude ?? '',
-          longtitude: deviceRecord.longitude ?? ''
+          longitude: deviceRecord.longitude ?? ''
         }
       }
     },
@@ -445,8 +442,8 @@ export const deviceRoutes = new Elysia({
 
       const startTime = Math.min(start, end)
       const endTime = Math.max(start, end)
-      const startGmtPlus7 = toGmtPlus7String(startTime)
-      const endGmtPlus7 = toGmtPlus7String(endTime)
+      const startGmtPlus7 = toUtcPlus7String(startTime)
+      const endGmtPlus7 = toUtcPlus7String(endTime)
 
       const rows = await database
         .select({
@@ -487,8 +484,8 @@ export const deviceRoutes = new Elysia({
       const { start, end } = body
       const startTime = Math.min(start, end)
       const endTime = Math.max(start, end)
-      const startGmtPlus7 = toGmtPlus7String(startTime)
-      const endGmtPlus7 = toGmtPlus7String(endTime)
+      const startGmtPlus7 = toUtcPlus7String(startTime)
+      const endGmtPlus7 = toUtcPlus7String(endTime)
 
       const results = await Promise.all(
         body.deviceList.map(async (device) => {
@@ -537,7 +534,11 @@ export const deviceRoutes = new Elysia({
   )
   .post(
     '/latest',
-    async ({ body }) => {
+    async ({ body, set }) => {
+      set.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate'
+      set.headers.Pragma = 'no-cache'
+      set.headers.Expires = '0'
+
       const baseUrl = process.env.MAIN_STREAM_URL
 
       if (!baseUrl) {
@@ -548,10 +549,13 @@ export const deviceRoutes = new Elysia({
         }
       }
 
-      const response = await fetch(`${baseUrl}/latest`, {
+      const response = await fetch(`${baseUrl}/latest?ts=${Date.now()}`, {
         method: 'POST',
+        cache: 'no-store',
         headers: {
-          'content-type': 'application/json'
+          'content-type': 'application/json',
+          'cache-control': 'no-cache, no-store, max-age=0',
+          pragma: 'no-cache'
         },
         body: JSON.stringify(body)
       })
@@ -570,10 +574,12 @@ export const deviceRoutes = new Elysia({
           Array.isArray(item.data) && item.data.length > 0
       )?.data?.[0]
 
+      const monitorTime = utcStringToUtcPlus7(dataItem?.monitorTime);
+
       return {
         code: typeof payload?.code === 'number' ? payload.code : response.status,
         monitorValue: dataItem?.monitorValue ?? '',
-        monitorTime: dataItem?.monitorTime ?? ''
+        monitorTime: monitorTime ?? ''
       }
     },
     {

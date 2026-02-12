@@ -7,6 +7,7 @@ import { initialize } from "./db/database";
 import { startMainStreamSync } from "./services/mainStream";
 
 export const db = initialize();
+const port = Number(process.env.PORT ?? 3000);
 
 db
   .then((database) => {
@@ -27,7 +28,7 @@ const app = new Elysia()
   .use(authRoutes)
   .use(userRoutes)
   .get("/", () => "Hello Elysia")
-  .listen({ port: 3000, hostname: "0.0.0.0" });
+  .listen({ port, hostname: "0.0.0.0" });
 
 console.log(
   `🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}`

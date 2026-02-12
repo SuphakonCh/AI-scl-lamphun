@@ -2,15 +2,16 @@
   "name": "elysia",
   "version": "1.0.50",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "bun run --watch src/index.ts"
+    "dev": "bun run --watch src/index.ts",
+    "build": "bun build src/index.ts --target bun --outdir dist --sourcemap",
+    "start": "bun run dist/index.js"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.2.0",
     "@elysiajs/jwt": "^1.2.0",
     "drizzle-orm": "^0.45.1",
     "elysia": "latest",
-    "mysql2": "^3.16.3"
+    "postgres": "^3.4.7"
   },
   "devDependencies": {
     "bun-types": "latest"
