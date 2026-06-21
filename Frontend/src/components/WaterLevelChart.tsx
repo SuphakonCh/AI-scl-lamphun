@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useCallback } from "react";
 import {
-  ComposedChart, Line, Bar, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, ReferenceLine
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, 
+  Tooltip, ResponsiveContainer
 } from 'recharts';
 import styles from '../styles/WaterLevelChart.module.css';
 
@@ -41,7 +41,7 @@ export const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ onDataUpdate }
   const [currentWater, setCurrentWater] = useState<number | null>(null);
   const dataRef = useRef<WaterData[]>([]);
   
-  // [NEW] ตัวแปรจำค่าฝนสะสม (เริ่มที่ 0)
+  // ตัวแปรจำค่าฝนสะสม (เริ่มที่ 0) - กู้คืนจากโค้ดทีม
   const accumulatedRainRef = useRef<number>(0);
 
   const fetchLatestData = useCallback(async () => {
@@ -66,7 +66,7 @@ export const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ onDataUpdate }
         ? parseFloat(parseFloat(result.rainLevel).toFixed(3)) 
         : parseFloat((Math.random() * 0.5).toFixed(3));
       
-      // [LOGIC CHANGE] บวกทบเข้าไปในยอดสะสมรวม
+      // บวกทบเข้าไปในยอดสะสมรวม
       accumulatedRainRef.current += rainDelta;
       const totalRain = parseFloat(accumulatedRainRef.current.toFixed(3));
 
@@ -76,13 +76,13 @@ export const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ onDataUpdate }
       });
 
       setCurrentWater(waterVal);
-      // ส่งค่า totalRain (สะสม) ออกไปแทนค่า rainDelta
-      onDataUpdate?.(waterVal, totalRain);
+      // ส่งค่า totalRain (สะสม) ออกไปให้ DashboardPage
+      if (onDataUpdate) onDataUpdate(waterVal, totalRain);
 
       const newItem: WaterData = { 
         time: timeStr, 
         waterLevel: waterVal, 
-        rainLevel: totalRain // กราฟจะแสดงยอดสะสมที่สูงขึ้นเรื่อยๆ
+        rainLevel: totalRain
       };
 
       const newData = [...dataRef.current, newItem].slice(-24);
@@ -96,57 +96,55 @@ export const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ onDataUpdate }
 
   useEffect(() => {
     fetchLatestData();
+    // ดึงข้อมูลใหม่ทุก 10 วินาที
     const interval = setInterval(fetchLatestData, 10000);
     return () => clearInterval(interval);
   }, [fetchLatestData]);
 
   return (
     <div className={styles.chartCard}>
-      <header className={styles.header}>
-        <h2 className="text-h1" style={{ color: 'var(--color-brand-primary)' }}>
-          ระดับน้ำ (24 ชม.)
-        </h2>
-        <div className={styles.currentSummary}>
-          <span className="text-data-lg" style={{ color: 'var(--color-brand-secondary)', fontSize: '28px' }}>
-            {currentWater?.toFixed(3) ?? '---'} 
-            <small style={{ fontSize: '18px', marginLeft: '4px' }}>ม.</small>
-          </span>
-        </div>
-      </header>
-
+      {/* ส่วน header ถูกลบไปรวมกับหน้า DataCard ตามแบบ Figma แล้ว แต่ยังคงตรรกะ currentWater และการดึงข้อมูลไว้อยู่ */}
+      
       <div className={styles.chartBody}>
         <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" vertical stroke="#E5E7EB" />
-            <XAxis dataKey="time" fontSize={11} stroke="var(--color-text-tertiary)" tickLine={false} axisLine={false} />
-            <YAxis yAxisId="left" domain={[0, 4]} fontSize={11} tickLine={false} axisLine={false} />
-            {/* [ADJUST] ปรับ Domain แกนขวาให้รองรับค่าสะสมที่อาจจะเยอะขึ้น (Auto หรือกำหนด Max) */}
-            <YAxis yAxisId="right" orientation="right" domain={[0, 'auto']} fontSize={11} tickLine={false} axisLine={false} />
-            
-            <Tooltip content={<CustomTooltip />} />
-            
-            <Bar 
-              yAxisId="right" 
-              name="น้ำฝนสะสม" 
-              unit="มม." 
-              dataKey="rainLevel" 
-              fill="var(--color-graf-rain)" 
-              barSize={40} 
-              radius={[4, 4, 0, 0]} 
+          <AreaChart data={data} margin={{ top: 20, right: 20, left: -20, bottom: 0 }}>
+            <defs>
+              <linearGradient id="colorRainfall" x1="0" y1="0" x2="0" y2="1">
+                {/* เปลี่ยนจากการใช้สี Hex เป็นการดึงตัวแปร CSS ของทีม */}
+                <stop offset="5%" stopColor="var(--color-graf-rain)" stopOpacity={0.3}/>
+                <stop offset="95%" stopColor="var(--color-graf-rain)" stopOpacity={0}/>
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" vertical={true} stroke="var(--color-text-secondary)" />
+            <XAxis 
+                dataKey="time" 
+                fontSize={12} 
+                stroke="var(--color-text-secondary)" 
+                tickLine={false} 
+                axisLine={{stroke: "var(--color-text-secondary)"}} 
+                dy={10}
             />
-            <Line 
-              yAxisId="left" 
-              name="ระดับน้ำ" 
-              unit="ม." 
+            <YAxis 
+                fontSize={12} 
+                stroke="var(--color-text-secondary)" 
+                tickLine={false} 
+                axisLine={false} 
+                dx={-10}
+            />
+            <Tooltip content={<CustomTooltip />} cursor={{ stroke: 'var(--color-text-secondary)', strokeWidth: 1, strokeDasharray: '3 3' }} />
+            
+            <Area 
               type="monotone" 
-              dataKey="waterLevel" 
-              stroke="var(--color-graf-waterLevel)" 
-              strokeWidth={4} 
-              dot={false} 
-              activeDot={{ r: 6 }} 
+              dataKey="rainLevel" 
+              name="ปริมาณน้ำฝนสะสม"
+              stroke="var(--color-graf-rain)" 
+              strokeWidth={2}
+              fillOpacity={1} 
+              fill="url(#colorRainfall)" 
+              activeDot={{ r: 6, fill: "var(--color-graf-rain)", stroke: "#fff", strokeWidth: 2 }}
+              dot={{ r: 3, fill: "#fff", stroke: "var(--color-graf-rain)", strokeWidth: 2 }}
             />
-            <ReferenceLine yAxisId="left" y={3} stroke="var(--color-status-critical)" strokeDasharray="3 3" />
-          </ComposedChart>
+          </AreaChart>
         </ResponsiveContainer>
       </div>
 
@@ -158,12 +156,12 @@ export const WaterLevelChart: React.FC<WaterLevelChartProps> = ({ onDataUpdate }
 const ChartLegend = () => (
   <div className={styles.legendContainer}>
     <div className={styles.legendItem}>
-      <div className={styles.legendIconLine} style={{ backgroundColor: 'var(--color-graf-waterLevel)' }}></div>
-      <span className={`${styles.legendText} text-caption`}>ระดับน้ำ (เมตร)</span>
-    </div>
-    <div className={styles.legendItem}>
-      <div className={styles.legendIconBar} style={{ backgroundColor: 'var(--color-graf-rain)' }}></div>
-      <span className={`${styles.legendText} text-caption`}>น้ำฝนสะสม (มิลลิเมตร)</span>
+      <svg width="24" height="12" viewBox="0 0 24 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="4" cy="6" r="3" fill="#ffffff" stroke="var(--color-graf-rain)" strokeWidth="2"/>
+        <line x1="7" y1="6" x2="17" y2="6" stroke="var(--color-graf-rain)" strokeWidth="2"/>
+        <circle cx="20" cy="6" r="3" fill="#ffffff" stroke="var(--color-graf-rain)" strokeWidth="2"/>
+      </svg>
+      <span className={styles.legendText}>ปริมาณน้ำฝนสะสม</span>
     </div>
   </div>
 );

@@ -19,24 +19,13 @@ const MenuBar = () => {
   return (
     <nav className={styles.navbarContainer}>
       
-      {/* 1. ปุ่ม Logout (ซ้ายสุด) */}
-      <div>
-        <button 
-          className={styles.logoutBtn} 
-          onClick={() => {
-            if(confirm("ต้องการออกจากระบบใช่หรือไม่?")) {
-                localStorage.clear();
-                window.location.reload();
-            }
-          }}
-        >
-          Logout
-        </button>
+      {/* 1. Logo (ซ้ายสุด) */}
+      <div className={styles.logoGroup}>
+        <h1 className={styles.logoText}>Water Flow</h1>
       </div>
 
-      {/* 2. กลุ่มเมนู (ขวาสุด) */}
+      {/* 2. กลุ่มเมนู (ตรงกลาง) */}
       <div className={styles.menuGroup}>
-        
         {/* เมนู 1: แดชบอร์ด */}
         <Link to="/" className={getNavClass('/')}>
           <span className={styles.navTitle}>แดชบอร์ด</span>
@@ -60,7 +49,25 @@ const MenuBar = () => {
           <span className={styles.navTitle}>การตั้งค่า</span>
           <span className={styles.navSubtitle}>หน้าต่างตั้งค่า</span>
         </Link>
+      </div>
 
+      {/* 3. Search & Profile (ขวาสุด) */}
+      <div className={styles.rightGroup}>
+        <div className={styles.searchBox}>
+          <span className={styles.searchIcon}>🔍</span>
+          <input type="text" placeholder="Search" className={styles.searchInput} />
+        </div>
+        <button 
+          className={styles.profileBtn}
+          onClick={() => {
+            if(confirm("ต้องการออกจากระบบใช่หรือไม่?")) {
+                localStorage.clear();
+                window.location.reload();
+            }
+          }}
+        >
+          Username
+        </button>
       </div>
 
     </nav>
@@ -71,7 +78,6 @@ const MenuBar = () => {
 function Navbar() {
   return (
     <div className={styles.layoutContainer}>
-      
       {/* ส่วนบน: Navbar */}
       <MenuBar />
 
@@ -84,7 +90,6 @@ function Navbar() {
           <Route path='/settings' element={<div className="text-h1">หน้าการตั้งค่า (Demo)</div>} />
         </Routes>
       </div>
-
     </div>
   );
 }

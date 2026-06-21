@@ -1,14 +1,24 @@
 import { useState, useEffect } from 'react'
-import { BrowserRouter } from 'react-router-dom' // [เพิ่ม] ต้อง Import ตัวนี้
-import Navbar from './components/Navbar'         // [เพิ่ม] เรียกใช้ Navbar ที่ทำไว้
+import { BrowserRouter } from 'react-router-dom' 
+import Navbar from './components/Navbar'         
 import LoginPage from './pages/LoginPage.tsx';
 
 function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  // --- [TEMP BYPASS LOGIN] ---
+  // บังคับให้เป็น true ชั่วคราวเพื่อเทส UI โดยไม่ต้องใช้ Tailscale
+  const [isLoggedIn, setIsLoggedIn] = useState(true);
+  // ---------------------------
+  
   const [userId, setUserId] = useState<number | null>(null); 
   const [isLoading, setIsLoading] = useState(true);
 
   const checkSession = async () => {
+    // --- [TEMP BYPASS LOGIN] ---
+    // ข้ามการยิง API เช็ค Session ชั่วคราวเพื่อให้เทสหน้า UI ได้
+    setIsLoading(false);
+    return;
+    // ---------------------------
+
     try {
       const token = localStorage.getItem('accessToken');
 

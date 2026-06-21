@@ -24,3 +24,9 @@ dist-ssr
 *.sw?
 
 .env
+
+# Project Markdown Docs
+pm_roadmap.md
+project_overview.md
+docs/design_system.md
+AGENTS.md
