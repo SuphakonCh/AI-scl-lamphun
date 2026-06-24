@@ -9,10 +9,11 @@
 
   --color-bg-page: #F3F4F6;         
   --color-bg-surface: #FFFFFF;
-  --color-border-line: #FEFEFF;   
-
+  --color-border-line: #E5E7EB;   
 
   --color-darkBlue:#070F29;
+  --color-darkSlate:#1E293B;
+  --color-brand-deep:#1C398E;
   /* --- Text Colors --- */
   --color-text-primary: #111827;     
   --color-text-secondary: #6B7280;
@@ -29,7 +30,6 @@
   --color-graf-rain:rgba(68, 181, 194, 0.62);
   --color-graf-waterLevel:#155DFC;
 
-
   /* --- Typography (Fonts) --- */
   --font-ui: 'Inter', system-ui, sans-serif;
   --font-data: 'IBM Plex Mono', monospace;
@@ -39,31 +39,29 @@
   --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 
-
   /*---Gradient Color*/
-  --brand-secondary-blen : linear-gradient(90deg, #1E40AF 0%, #000 100%);
+  --brand-secondary-blend: linear-gradient(90deg, #1E40AF 0%, #000 100%);
+  --brand-panel-gradient: conic-gradient(from 0deg at 50% 50%, #1C398E -51.92deg, #1E293B 57.44deg, #1D293D 162.69deg, #1C398E 308.08deg, #1E293B 417.44deg);
 }
 
 /* 3. Global Reset */
 body {
   margin: 0;
-  background-color: var(--color-bg);
-  color: var(--text-primary);
+  background-color: var(--color-bg-page);
+  color: var(--color-text-primary);
   font-family: var(--font-ui); 
   -webkit-font-smoothing: antialiased;
 }
 
-/* 4. Utility Classes (ชุดคำสั่งที่เราจะเรียกใช้บ่อยๆ) */
-
-/* --- Typography Utilities --- */
+/* 4. Utility Classes */
 .text-h1 { font-size: 24px; font-weight: 700; line-height: 1.25; }
 .text-h2 { font-size: 20px; font-weight: 600; line-height: 1.25; }
 .text-h3 { font-size: 16px; font-weight: 500; line-height: 1.25; }
 .text-default { font-size: 14px; font-weight: 400; line-height: 1.5; }
-.text-caption { font-size: 12px; font-weight: 400; line-height: 1.5; color: var(--text-secondary); }
+.text-caption { font-size: 12px; font-weight: 400; line-height: 1.5; color: var(--color-text-secondary); }
 
-/* --- Data Font Utilities (IBM Plex Mono) --- */
-.text-data-lg { font-family: var(--font-data); font-size: 24px; font-weight: 700; }
+/* --- Data Font Utilities --- */
+.text-data-lg { font-family: var(--font-data); font-size: 28px; font-weight: 700; }
 .text-data-md { font-family: var(--font-data); font-size: 14px; font-weight: 400; }
 .text-data-sm { font-family: var(--font-data); font-size: 12px; font-weight: 400; }
 
@@ -75,8 +73,9 @@ body {
 }
 
 .card {
-  background-color: var(--color-surface);
-  border-radius: 12px; /* ความโค้งมนของการ์ด */
+  background-color: var(--color-bg-surface);
+  border-radius: 8px;
   padding: 24px;
   box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-line);
 }

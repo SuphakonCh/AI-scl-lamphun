@@ -42,3 +42,29 @@ yarn-error.log*
 **/*.log
 **/package-lock.json
 **/*.bun
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+.env
+
+# Project Markdown Docs
+pm_roadmap.md
+project_overview.md
+docs/design_system.md
+AGENTS.md
