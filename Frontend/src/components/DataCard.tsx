@@ -30,7 +30,7 @@ const DataCard: React.FC<DataCardProps> = ({
         <span className={`${styles.value} ${textClass}`}>
           {value}
         </span>
-        <span className={`${styles.unit} ${textClass}`}>
+        <span className={styles.unit}>
           {unit}
         </span>
       </div>

@@ -1,133 +1,160 @@
 /* components/Navbar.module.css */
 
-/* 1. คอนเทนเนอร์หลัก (แท่งรางยาวๆ สีเทาอ่อน) */
 .navbarContainer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: #E5E7EB; /* สีเทาอ่อนพื้นหลังราง (ไม่มีใน root ใช้ค่าใกล้เคียง) */
-  border-radius: 50px;       /* ความโค้งของราง */
-  padding: 8px 12px;         /* ระยะห่างขอบรางกับปุ่ม */
+  background-color: var(--color-bg-surface); 
+  padding: 0 40px;
   width: 100%;
-  max-width: 1200px;         /* จำกัดความกว้างไม่ให้ยืดเกินไป */
-  margin: 0 auto 20px auto;  /* จัดกึ่งกลาง + เว้นระยะล่าง */
-  box-shadow: var(--shadow-md);
-  font-family: var(--font-ui); /* ใช้ฟอนต์หลัก */
+  height: 80px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1); /* เงาบางๆ ให้ดูลอยขึ้นมา */
+  font-family: var(--font-ui);
+  box-sizing: border-box;
 }
 
-/* 2. ปุ่ม Logout (ด้านซ้าย) */
-.logoutBtn {
-  background-color: var(--color-bg-surface);
-  border: none;
-  border-radius: 40px;
-  padding: 12px 32px;
-  font-family: var(--font-ui);
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow-sm);
+/* 1. Logo */
+.logoGroup {
   display: flex;
   align-items: center;
-  height: 100%;
 }
 
-.logoutBtn:hover {
-  background-color: #F9FAFB;
-  transform: translateY(-1px);
+.logoText {
+  color: var(--color-brand-primary);
+  font-size: 24px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.5px;
 }
 
-/* 3. กลุ่มเมนู (ด้านขวา) */
+/* 2. Menu Group */
 .menuGroup {
   display: flex;
-  gap: 12px; /* ระยะห่างระหว่างแคปซูลเมนู */
+  height: 100%;
+  gap: 32px;
 }
 
-/* 4. รายการเมนู (Menu Item) - สถานะปกติ (สีขาว) */
 .navItem {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background-color: var(--color-bg-surface);
-  border-radius: 40px;       /* ความโค้งแคปซูลเมนู */
-  padding: 8px 32px;         /* ปรับ padding ให้กว้างเหมือนรูป */
   text-decoration: none;
-  min-width: 140px;          /* ความกว้างขั้นต่ำของปุ่ม */
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  border: 1px solid transparent; /* กันการกระตุกของ border */
-  box-shadow: var(--shadow-sm);
+  height: 100%;
+  padding: 0 16px;
+  border-bottom: 3px solid transparent; 
+  transition: all 0.2s ease;
+  box-sizing: border-box;
 }
 
-/* ข้อความบรรทัดบน (หัวข้อ) */
 .navTitle {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-text-primary);
-  line-height: 1.2;
-  margin-bottom: 2px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text-secondary); /* สีเทาตอนยังไม่เลือก */
+  margin-bottom: 4px;
 }
 
-/* ข้อความบรรทัดล่าง (คำอธิบาย) */
 .navSubtitle {
   font-size: 11px;
-  font-weight: 400;
-  color: var(--color-text-secondary);
-  line-height: 1.2;
+  color: var(--color-text-tertiary); 
 }
 
-/* 5. รายการเมนู - สถานะ Active (สีน้ำเงิน) */
+/* เมนู Active */
 .active {
-  background-color: var(--color-brand-primary); /* #1E40AF */
-  box-shadow: var(--shadow-md);
+  border-bottom: 3px solid var(--color-brand-primary);
 }
 
-/* เปลี่ยนสีตัวหนังสือเมื่อ Active เป็นสีขาว */
 .active .navTitle {
-  color: var(--color-text-onBrand); /* #FFFFFF */
+  color: var(--color-brand-primary); /* สีน้ำเงินสว่างตอนเลือก */
 }
 
-.active .navSubtitle {
-  color: rgba(255, 255, 255, 0.8); /* สีขาวจางนิดหน่อย */
+/* Hover Effect */
+.navItem:hover {
+  background-color: rgba(0, 0, 0, 0.03);
+}
+.navItem:hover .navTitle {
+  color: var(--color-brand-primary);
 }
 
-/* Hover Effect (เฉพาะตัวที่ไม่ได้ Active) */
-.navItem:not(.active):hover {
-  background-color: #F9FAFB;
-  transform: translateY(-2px);
+/* 3. Right Group (Search & Profile) */
+.rightGroup {
+  display: flex;
+  align-items: center;
+  gap: 16px;
 }
 
-/* Layout Wrapper สำหรับหน้า (ถ้าต้องการ) */
+/* Search Box */
+.searchBox {
+  display: flex;
+  align-items: center;
+  background-color: var(--color-bg-page); /* สีเทาอ่อนของพื้นหลัง */
+  border-radius: 40px;
+  padding: 8px 16px;
+  width: 250px;
+}
+
+.searchIcon {
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  margin-right: 8px;
+}
+
+.searchInput {
+  background: transparent;
+  border: none;
+  color: var(--color-text-primary);
+  outline: none;
+  font-size: 14px;
+  width: 100%;
+  font-family: var(--font-ui);
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+/* Profile / Username Button */
+.profileBtn {
+  background-color: var(--color-brand-primary);
+  color: #FFFFFF;
+  border: none;
+  border-radius: 40px;
+  padding: 10px 24px;
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.profileBtn:hover {
+  background-color: var(--color-brand-secondary);
+  transform: translateY(-1px);
+}
+
+/* Layout Wrapper */
 .layoutContainer {
   width: 100%;
   min-height: 100vh;
-  background-color: var(--color-bg-page); /* #F3F4F6 */
-  padding: 20px;
+  background-color: var(--color-bg-page);
   box-sizing: border-box;
 }
 
 .contentArea {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1440px;
   margin: 0 auto;
+  padding: 24px 40px;
+  box-sizing: border-box;
+}
+
+@media (max-width: 1024px) {
+  .searchBox { width: 180px; }
+  .menuGroup { gap: 16px; }
 }
 
 @media (max-width: 768px) {
-  .navbarContainer {
-    padding: 4px 8px;
-    border-radius: 20px;
-  }
-  .logoutBtn {
-    padding: 8px 16px;
-    font-size: 14px;
-  }
-  .navItem {
-    min-width: auto; /* ปลดล็อกความกว้าง */
-    padding: 6px 12px;
-  }
-  .navSubtitle {
-    display: none; /* ซ่อนคำอธิบายในมือถือเพื่อประหยัดที่ */
-  }
+  .navbarContainer { padding: 0 16px; }
+  .navSubtitle { display: none; }
+  .searchBox { display: none; }
 }

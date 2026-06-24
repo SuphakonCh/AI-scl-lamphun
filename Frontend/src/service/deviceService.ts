@@ -15,6 +15,7 @@ export interface DeviceRangeResponse {
   data: DeviceRangeData[];
 }
 
+
 export interface DeviceInfoResponse {
   monitorName: string;
   customName: string;
@@ -23,6 +24,17 @@ export interface DeviceInfoResponse {
     latitude: string;
     longitude: string;
   };
+}
+
+export interface RainProbabilityData {
+  time: string;
+  sun: string;
+  mon: string;
+  tue: string;
+  wed: string;
+  thu: string;
+  fri: string;
+  sat: string;
 }
 
 // 2. Helper Functions
@@ -94,6 +106,11 @@ export const DeviceService = {
        throw new Error(`API Error: ${response.status}`);
     }
     return response.json();
+  },
+
+  getRainProbability: async (): Promise<RainProbabilityData[]> => {
+    // สำหรับเชื่อมต่อ API จริงในอนาคต ตอนนี้ให้ return mock ไปก่อน
+    return MockDeviceService.getRainProbability();
   }
 };
 
@@ -146,5 +163,16 @@ export const MockDeviceService = {
     }
 
     return mockData;
+  },
+
+  getRainProbability: async (): Promise<RainProbabilityData[]> => {
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return [
+        { time: '09:00', sun: '00', mon: '00', tue: '00', wed: '00', thu: '00', fri: '00', sat: '00' },
+        { time: '10:00', sun: '00', mon: '00', tue: '00', wed: '00', thu: '00', fri: '00', sat: '00' },
+        { time: '11:00', sun: '00', mon: '00', tue: '00', wed: '00', thu: '00', fri: '00', sat: '00' },
+        { time: '12:00', sun: '00', mon: '00', tue: '00', wed: '00', thu: '00', fri: '00', sat: '00' },
+    ];
   }
 };
+

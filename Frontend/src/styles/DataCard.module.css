@@ -2,71 +2,64 @@
 
 /* Container หลักของ Card */
 .cardContainer {
-  /* --- Layout (อิงตาม Figma) --- */
   display: flex;
   flex-direction: column;
+  justify-content: center;
   align-items: flex-start;
-  width: 312px;
-  height: 166px;
-  gap: 26px; /* ระยะห่างระหว่างหัวข้อ กับ ตัวเลข */
-  padding: 38px 27px; /* Padding ตามรูป Figma */
-  margin: 18px;
+  flex: 1; /* ให้ยืดเต็มพื้นที่ flex container */
+  height: 120px;
+  gap: 8px;
+  padding: 20px 24px;
   
   background: var(--color-bg-surface);
-  border-radius: 40px;
-  box-shadow: var(--shadow-md);
+  border-radius: 8px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border-line);
   
   /* เส้นสีด้านบน (Default) */
-  border-top: 10px solid var(--color-brand-accent);
-  
+  border-top: 4px solid var(--color-brand-accent);
   box-sizing: border-box;
 }
 
 /* --- Typography: หัวข้อ --- */
 .title {
   align-self: stretch;
-  color: var(--text-primary);
-  
-  /* ฟอนต์ภาษาไทยใช้ Inter (font-ui) */
+  color: var(--color-text-primary);
   font-family: var(--font-ui); 
-  font-size: 20px;       /* Heading 2 */
-  font-weight: 600;      /* Semi Bold */
-  line-height: 28px;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 24px;
 }
 
 /* wrapper สำหรับจัดกลุ่มตัวเลขและหน่วย */
 .valueGroup {
   display: flex;
-  align-items: center;
-  gap: 15px;
+  align-items: baseline;
+  gap: 8px;
   align-self: stretch;
 }
 
 /* --- Typography: ตัวเลข --- */
 .value {
-  /* ตัวเลขใช้ IBM Plex Mono (font-data) */
   font-family: var(--font-data); 
-  font-size: 24px;       /* Data Large */
-  font-weight: 700;      /* Bold */
-  line-height: 32px;
-  /* สีจะถูกเปลี่ยนตาม Theme Class ด้านล่าง */
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 /* --- Typography: หน่วย --- */
 .unit {
-  /* หน่วยภาษาไทยใช้ Inter (font-ui) */
   font-family: var(--font-ui); 
-  font-size: 24px;       /* Data Large */
-  font-weight: 700;
-  line-height: 32px;
-  /* สีจะถูกเปลี่ยนตาม Theme Class ด้านล่าง */
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-primary);
 }
 
 /* --- Themes (OOP Style) --- */
 
 /* Theme: สีส้ม (เตือนภัย/Warning) */
 .themeOrange {
-  border-color: var(--color-brand-accent);
+  border-top-color: var(--color-brand-accent);
 }
 .textOrange {
   color: var(--color-brand-accent);
@@ -74,8 +67,8 @@
 
 /* Theme: สีฟ้า (ปกติ/Brand) */
 .themeBlue {
-  border-color: var(--color-brand-secondary);
+  border-top-color: var(--color-brand-secondary);
 }
 .textBlue {
-   color: var( --color-brand-secondary);
+  color: var(--color-brand-secondary);
 }

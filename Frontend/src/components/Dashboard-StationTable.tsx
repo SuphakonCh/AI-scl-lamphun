@@ -1,27 +1,27 @@
 import React, { useMemo } from 'react';
+import type { DeviceRangeData } from '../service/deviceService';
 import styles from '../styles/Dashboard-StationTable.module.css';
-import { type DeviceRangeData } from '../service/deviceService';
 
-// Props Interface
 interface StationTableProps {
   waterData: DeviceRangeData[];
   rainData: DeviceRangeData[];
-  isLoading?: boolean;
+  isLoading: boolean;
+  stationName?: string; // รับชื่อสถานีมาจากหน้า Dashboard แทนการ Hardcode
 }
 
-// Helper Type for Merged Data
 interface TableRowData {
-  id: string; // unique key usually timestamp
+  id: string;
+  name: string;
   timestamp: string;
-  rawTimestamp: string; // for sorting
   waterLevel: string;
   rainfall: string;
   status: 'normal' | 'warning' | 'critical';
+  rawTimestamp: string;
 }
 
-const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoading }) => {
+const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoading, stationName = "Unknown Station" }) => {
 
-  // 1. Logic การ Merge Data (น้ำ + ฝน) โดยใช้ Time เป็นตัวเชื่อม
+  // 1. Logic การ Merge Data (น้ำ + ฝน) โดยใช้ Time เป็นตัวเชื่อม - กู้คืนจากโค้ดทีม
   const tableData: TableRowData[] = useMemo(() => {
     const dataMap = new Map<string, Partial<TableRowData>>();
 
@@ -33,7 +33,7 @@ const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoad
         const isToday = date.toDateString() === today.toDateString();
         
         const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }).replace(':', '.');
-        const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'long' });
+        const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 
         return `${isToday ? 'Today' : dateStr}, ${timeStr}`;
       } catch (e) {
@@ -55,8 +55,9 @@ const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoad
       dataMap.set(item.monitorTime, {
         rawTimestamp: item.monitorTime,
         timestamp: formatDisplayTime(item.monitorTime),
-        waterLevel: parseFloat(item.monitorValue).toFixed(2), // Format 2 decimal
-        rainfall: '-' // default
+        waterLevel: parseFloat(item.monitorValue).toFixed(3), // Format ตาม UI ใหม่ (3 ตำแหน่ง)
+        rainfall: '-', // default
+        name: stationName
       });
     });
 
@@ -66,9 +67,10 @@ const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoad
         rawTimestamp: item.monitorTime,
         timestamp: formatDisplayTime(item.monitorTime),
         waterLevel: '-',
+        name: stationName
       };
       
-      existing.rainfall = parseFloat(item.monitorValue).toFixed(1);
+      existing.rainfall = parseFloat(item.monitorValue).toFixed(3);
       dataMap.set(item.monitorTime, existing);
     });
 
@@ -81,14 +83,14 @@ const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoad
       } as TableRowData))
       .sort((a, b) => new Date(b.rawTimestamp).getTime() - new Date(a.rawTimestamp).getTime());
 
-  }, [waterData, rainData]);
+  }, [waterData, rainData, stationName]);
 
 
-  // 2. Logic การ Export CSV
+  // 2. Logic การ Export CSV - กู้คืนจากโค้ดทีม
   const handleExportCSV = () => {
-    const headers = ['Timestamp,Water Level (m),Rainfall (m3),Status'];
+    const headers = ['Station Name,Timestamp,Water Level (m),Rainfall (mm/h),Status'];
     const rows = tableData.map(row => 
-      `${row.rawTimestamp},${row.waterLevel},${row.rainfall},${row.status}`
+      `${row.name},${row.rawTimestamp},${row.waterLevel},${row.rainfall},${row.status}`
     );
     
     const csvContent = "data:text/csv;charset=utf-8," + [headers, ...rows].join("\n");
@@ -107,57 +109,66 @@ const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoad
 
   return (
     <div className={styles.container}>
-      {/* Action Bar */}
-      <div className={styles.headerActions}>
-        <button onClick={handleExportCSV} className={styles.exportBtn}>
+      
+      {/* ส่วนหัวของตาราง พร้อมปุ่ม Export CSV ที่กู้คืนมาจัดวางให้เข้ากับ UI ใหม่ */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '10px' }}>
+        <button onClick={handleExportCSV} style={{ padding: '6px 12px', backgroundColor: 'var(--color-bg-surface)', border: '1px solid #E5E7EB', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 'bold' }}>
           Export CSV
         </button>
       </div>
 
       {/* Header Row */}
-      <div className={`${styles.gridRow} ${styles.tableHeader}`}>
-        <div className={styles.timestamp}>TIMESTAMP</div>
-        <div className={styles.headerCell}>WATER LEVEL (m)</div>
-        <div className={styles.headerCell}>RAINFALL (m³)</div>
-        <div className={styles.headerCell}>STATUS</div>
+      <div className={styles.tableHeader}>
+        <div>ชื่อสถานี</div>
+        <div>เวลา</div>
+        <div className={`${styles.iconCell} ${styles.centerAlign}`}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M2 20h20M5 20v-4M9 20v-8M13 20v-12M17 20v-16" />
+          </svg>
+        </div>
+        <div className={`${styles.iconCell} ${styles.centerAlign}`}>
+          <svg width="24" height="14" viewBox="0 0 24 14" fill="none" stroke="currentColor" strokeWidth="2">
+            <rect x="2" y="2" width="18" height="10" rx="2" />
+            <path d="M22 5v4" />
+          </svg>
+        </div>
+        <div className={styles.centerAlign}>ระดับน้ำ(เมตร)</div>
+        <div className={styles.centerAlign}>ปริมาณน้ำฝน(มิลลิเมตร/ชั่วโมง)</div>
       </div>
 
       {/* Data Rows */}
       <div className={styles.tableBody}>
         {tableData.length === 0 ? (
-          <div className="text-center p-4 text-gray-400">No data available</div>
+          <div className="text-center p-4 text-gray-400">ไม่มีข้อมูลสถานี</div>
         ) : (
           tableData.map((row) => (
-            <div key={row.id} className={`${styles.gridRow} ${styles.dataRow}`}>
+            <div key={row.id} className={styles.dataRow}>
+              <div>
+                 {row.name}
+                 {/* กู้คืน Status Logic กลับมาโชว์คู่กับชื่อสถานีแบบเนียนๆ */}
+                 {row.status !== 'normal' && (
+                     <span style={{ marginLeft: '8px', fontSize: '10px', color: row.status === 'critical' ? 'red' : 'orange' }}>
+                        ({row.status})
+                     </span>
+                 )}
+              </div>
+              <div>{row.timestamp}</div>
               
-              {/* Column 1: Timestamp */}
-              <div className={styles.timestamp}>
-                {row.timestamp}
+              <div className={`${styles.iconCell} ${styles.centerAlign}`}>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M2 20h20M5 20v-4M9 20v-8M13 20v-12M17 20v-16" />
+                </svg>
               </div>
-
-              {/* Column 2: Water Level */}
-              <div className={`${styles.cell} ${styles.value}`}>
-                {row.waterLevel}
+              
+              <div className={`${styles.iconCell} ${styles.centerAlign}`}>
+                <svg width="24" height="14" viewBox="0 0 24 14" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="2" y="2" width="18" height="10" rx="2" />
+                  <path d="M22 5v4" />
+                </svg>
               </div>
-
-              {/* Column 3: Rainfall */}
-              <div className={`${styles.cell} ${styles.value}`}>
-                {row.rainfall}
-              </div>
-
-              {/* Column 4: Status Badge */}
-              <div className={styles.cell}>
-                <span className={`${styles.statusBadge} ${
-                  row.status === 'critical' ? styles.statusCritical : 
-                  row.status === 'warning' ? styles.statusWarning : 
-                  styles.statusNormal
-                }`}>
-                  <span className={styles.statusDot}></span>
-                  {row.status === 'warning' ? 'Warning' : row.status} 
-                  {/* Note: Fixed typo 'waring' from design to 'Warning' */}
-                </span>
-              </div>
-
+              
+              <div className={styles.centerAlign}>{row.waterLevel}</div>
+              <div className={styles.centerAlign}>{row.rainfall}</div>
             </div>
           ))
         )}
