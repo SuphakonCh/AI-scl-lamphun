@@ -9,8 +9,9 @@ function App() {
 
   const [isLoggedIn, setIsLoggedIn] = useState<boolean>(BYPASS_LOGIN);
   
-  const [userId, setUserId] = useState<number | null>(null); 
+  const [userId, setUserId] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  void userId;
 
   const checkSession = async () => {
     if (BYPASS_LOGIN) {
@@ -73,7 +74,7 @@ function App() {
       {!isLoggedIn ? (
         <LoginPage onLoginSuccess={handleLoginSuccess} />
       ) : (
-        <Navbar />
+        <Navbar/>
       )}
     </BrowserRouter>
   );

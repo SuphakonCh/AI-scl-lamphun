@@ -36,6 +36,10 @@ const client = postgres({
   }
 });
 
+// 1. ประกาศตัวแปร db ไว้ตรงนี้ (Singleton Pattern) เพื่อให้ไฟล์อื่นนำไปใช้ต่อได้ทันที
+export const db = drizzle(client);
+
+// 2. ฟังก์ชัน initialize ทำหน้าที่แค่วิ่งเช็คและสร้างตารางต่างๆ (ไม่แยกไปไหน และไม่ต้อง return อะไรแล้ว)
 export async function initialize() {
   await client`
     SELECT 1
@@ -105,5 +109,5 @@ export async function initialize() {
     )
   `
 
-  return drizzle(client);
+  console.log("✅ Database tables checked/created successfully.");
 }

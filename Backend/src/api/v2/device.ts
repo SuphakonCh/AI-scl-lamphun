@@ -4,7 +4,21 @@ import { sql } from 'drizzle-orm'
 import { and, eq } from 'drizzle-orm/sql/expressions/conditions'
 import { db } from '../..'
 import { deviceData, deviceOwners, devices } from '../../db/schema'
-import { toUtcPlus7String, utcStringToUtcPlus7 } from '../../services/mainStream'
+import { toUtcPlus7String } from '../../services/mainStream'
+
+const latestCache = new Map<string, { code: number; monitorValue: string; monitorTime: string; expiresAt: number }>()
+const MAX_CACHE_SIZE = 10_000
+
+const sweepCache = () => {
+  const now = Date.now()
+  for (const [key, entry] of latestCache) {
+    if (entry.expiresAt <= now) latestCache.delete(key)
+  }
+}
+
+setInterval(sweepCache, 30_000)
+
+const pendingRequests = new Map<string, Promise<{ code: number; monitorValue: string; monitorTime: string }>>()
 
 const deviceDataItem = t.Object({
   monitorItem: t.String(),
@@ -128,34 +142,9 @@ export const deviceRoutes = new Elysia({
         deviceLocation
       } = body
 
-      const existing = await database
-        .select()
-        .from(devices)
-        .where(eq(devices.deviceId, deviceId))
-        .limit(1)
-
-      let deviceRecord = existing[0]
-
-      if (deviceRecord) {
-        const storedKey = deviceRecord.deviceKey ?? ''
-        let validKey = false
-        let normalizedKey: string | null = null
-
-        if (!validKey) {
-          return {
-            code: 401,
-            message: 'Invalid device secret'
-          }
-        }
-
-        if (normalizedKey && normalizedKey !== storedKey) {
-          await database
-            .update(devices)
-            .set({ deviceKey: normalizedKey })
-            .where(eq(devices.id, deviceRecord.id))
-        }
-      } else {
-        await database.insert(devices).values({
+      await database
+        .insert(devices)
+        .values({
           deviceId: deviceId,
           deviceKey: deviceSecretKey,
           monitorItem,
@@ -165,40 +154,29 @@ export const deviceRoutes = new Elysia({
           latitude: deviceLocation?.latitude ?? null,
           longitude: deviceLocation?.longtitude ?? null
         })
+        .onConflictDoNothing({ target: devices.deviceId })
 
-        const created = await database
-          .select()
-          .from(devices)
-          .where(eq(devices.deviceId, deviceId))
-          .limit(1)
+      const deviceRecord = await database
+        .select()
+        .from(devices)
+        .where(eq(devices.deviceId, deviceId))
+        .limit(1)
+        .then(rows => rows[0])
 
-        deviceRecord = created[0]
-
-        if (!deviceRecord) {
-          return {
-            code: 500,
-            message: 'Failed to register device'
-          }
+      if (!deviceRecord) {
+        return {
+          code: 500,
+          message: 'Failed to register device'
         }
       }
 
-      const ownership = await database
-        .select()
-        .from(deviceOwners)
-        .where(
-          and(
-            eq(deviceOwners.userId, payload.id),
-            eq(deviceOwners.deviceId, deviceRecord.id)
-          )
-        )
-        .limit(1)
-
-      if (ownership.length === 0) {
-        await database.insert(deviceOwners).values({
+      await database
+        .insert(deviceOwners)
+        .values({
           userId: payload.id,
           deviceId: deviceRecord.id
         })
-      }
+        .onConflictDoNothing({ target: [deviceOwners.userId, deviceOwners.deviceId] })
 
       return {
         code: 200,
@@ -383,41 +361,43 @@ export const deviceRoutes = new Elysia({
         }
       }
 
-      await database
-        .delete(deviceOwners)
-        .where(
-          and(
-            eq(deviceOwners.userId, payload.id),
-            eq(deviceOwners.deviceId, deviceRecord.id)
-          )
-        )
+      const deviceRecordDeviceId = deviceRecord.deviceId
 
-      const remainingOwners = await database
-        .select()
-        .from(deviceOwners)
-        .where(eq(deviceOwners.deviceId, deviceRecord.id))
-        .limit(1)
-
-      if (remainingOwners.length === 0) {
-        const deviceRecordDeviceId = deviceRecord.deviceId
-
-        if (!deviceRecordDeviceId) {
-          return {
-            code: 500,
-            message: 'Device record is missing a deviceId'
-          }
+      if (!deviceRecordDeviceId) {
+        return {
+          code: 500,
+          message: 'Device record is missing a deviceId'
         }
-
-        await database
-          .delete(deviceData)
-          .where(eq(deviceData.deviceId, deviceRecordDeviceId))
-
-        await database
-          .delete(deviceOwners)
-          .where(eq(deviceOwners.deviceId, deviceRecord.id))
-
-        await database.delete(devices).where(eq(devices.id, deviceRecord.id))
       }
+
+      await database.transaction(async (tx) => {
+        await tx
+          .delete(deviceOwners)
+          .where(
+            and(
+              eq(deviceOwners.userId, payload.id),
+              eq(deviceOwners.deviceId, deviceRecord.id)
+            )
+          )
+
+        const remainingOwners = await tx
+          .select()
+          .from(deviceOwners)
+          .where(eq(deviceOwners.deviceId, deviceRecord.id))
+          .limit(1)
+
+        if (remainingOwners.length === 0) {
+          await tx
+            .delete(deviceData)
+            .where(eq(deviceData.deviceId, deviceRecordDeviceId))
+
+          await tx
+            .delete(deviceOwners)
+            .where(eq(deviceOwners.deviceId, deviceRecord.id))
+
+          await tx.delete(devices).where(eq(devices.id, deviceRecord.id))
+        }
+      })
 
       return {
         code: 200,
@@ -535,57 +515,60 @@ export const deviceRoutes = new Elysia({
   .post(
     '/latest',
     async ({ body, set }) => {
-      set.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, proxy-revalidate'
-      set.headers.Pragma = 'no-cache'
-      set.headers.Expires = '0'
+      const ttl = Number(process.env.LATEST_CACHE_TTL_MS ?? 60000)
+      set.headers['Cache-Control'] = `public, max-age=${Math.floor(ttl / 1000)}`
 
-      const baseUrl = process.env.MAIN_STREAM_URL
+      const cacheKey = `${body.deviceId}:${body.monitorItem}`
+      const cached = latestCache.get(cacheKey)
 
-      if (!baseUrl) {
-        return {
-          code: 500,
-          monitorValue: '',
-          monitorTime: ''
-        }
+      if (cached && cached.expiresAt > Date.now()) {
+        return { code: cached.code, monitorValue: cached.monitorValue, monitorTime: cached.monitorTime }
       }
 
-      const response = await fetch(`${baseUrl}/latest?ts=${Date.now()}`, {
-        method: 'POST',
-        cache: 'no-store',
-        headers: {
-          'content-type': 'application/json',
-          'cache-control': 'no-cache, no-store, max-age=0',
-          pragma: 'no-cache'
-        },
-        body: JSON.stringify(body)
-      })
+      const pending = pendingRequests.get(cacheKey)
+      if (pending) return await pending
 
-      if (!response.ok) {
-        return {
-          code: response.status,
-          monitorValue: '',
-          monitorTime: ''
+      const promise = (async () => {
+        const database = await db
+        const rows = await database
+          .select({
+            monitorValue: deviceData.monitorValue,
+            monitorTime: deviceData.monitorTime
+          })
+          .from(deviceData)
+          .where(
+            and(
+              eq(deviceData.deviceId, body.deviceId),
+              eq(deviceData.monitorItem, body.monitorItem)
+            )
+          )
+          .orderBy(sql`${deviceData.monitorTime} DESC`)
+          .limit(1)
+
+        const row = rows[0]
+        const result = {
+          code: row ? 200 : 404,
+          monitorValue: row?.monitorValue ?? '',
+          monitorTime: row?.monitorTime ?? ''
         }
-      }
 
-      const payload = await response.json()
-      const dataItem = payload?.data?.find(
-        (item: { data?: Array<{ monitorValue?: string; monitorTime?: string }> }) =>
-          Array.isArray(item.data) && item.data.length > 0
-      )?.data?.[0]
+        if (latestCache.size >= MAX_CACHE_SIZE) latestCache.clear()
 
-      const monitorTime = utcStringToUtcPlus7(dataItem?.monitorTime);
+        latestCache.set(cacheKey, { ...result, expiresAt: Date.now() + ttl })
 
-      return {
-        code: typeof payload?.code === 'number' ? payload.code : response.status,
-        monitorValue: dataItem?.monitorValue ?? '',
-        monitorTime: monitorTime ?? ''
+        return result
+      })()
+
+      pendingRequests.set(cacheKey, promise)
+      try {
+        return await promise
+      } finally {
+        pendingRequests.delete(cacheKey)
       }
     },
     {
       body: t.Object({
         deviceId: t.String(),
-        deviceSecretKey: t.String(),
         monitorItem: t.String()
       }),
       response: deviceLatestResponseSchema
