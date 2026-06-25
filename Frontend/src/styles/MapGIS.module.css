@@ -312,3 +312,9 @@
     gap: 10px;
   }
 }
+
+/* ตำแหน่ง overlay ของไอคอนแจ้งเตือน (แทน inline style) */
+.alertTriangleOverlay {
+  top: 25%;
+  left: 32%;
+}

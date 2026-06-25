@@ -28,6 +28,12 @@
   --color-graf-rain:rgba(68, 181, 194, 0.62);
   --color-graf-waterLevel:#155DFC;
 
+  /* --- Chart UI Colors --- */
+  --color-chart-grid: #2d3748;      /* สีเส้น Grid ในกราฟ */
+  --color-chart-axis: #8b95a5;      /* สีแกนและป้ายกำกับในกราฟ */
+  --color-chart-dot-fill: #ffffff;  /* สีจุดบนกราฟ (พื้นขาว) */
+
+
   /* --- Typography (Fonts) --- */
   --font-ui: 'Inter', system-ui, sans-serif;
   --font-data: 'IBM Plex Mono', monospace;

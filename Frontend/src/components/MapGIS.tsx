@@ -132,7 +132,7 @@ const MapGIS = () => {
         </div>
         
         {/* Example Critical Alert Icon overlay (The red triangle in design) */}
-        <div className={styles.alertTriangle} style={{ top: '25%', left: '32%' }}>
+        <div className={`${styles.alertTriangle} ${styles.alertTriangleOverlay}`}>
           ⚠️
         </div>
 

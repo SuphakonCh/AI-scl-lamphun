@@ -106,3 +106,7 @@
 .statusCritical, .iconCritical { color: #ff3b30; }
 .statusWarning,  .iconBad      { color: #ffcc00; }
 .statusNormal,   .iconGood     { color: #34c759; }
+
+/* ข้อความ Loading และ Empty state */
+.loadingText { color: #ffffff; }
+.emptyText   { color: #8b95a5; }

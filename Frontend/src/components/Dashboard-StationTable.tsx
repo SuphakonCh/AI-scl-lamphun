@@ -74,7 +74,7 @@ const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoad
   }, [waterData, rainData]);
 
   if (isLoading) {
-    return <div className="text-center p-4" style={{ color: '#ffffff' }}>Loading Data...</div>;
+    return <div className={`text-center p-4 ${styles.loadingText}`}>Loading Data...</div>;
   }
 
   return (
@@ -102,7 +102,7 @@ const StationTable: React.FC<StationTableProps> = ({ waterData, rainData, isLoad
       {/* 3. แถวข้อมูลพร้อม Dynamic Bootstrap Icons และผูก Class คอลัมน์ครบถ้วน */}
       <div className={styles.tableBody}>
         {tableData.length === 0 ? (
-          <div className="text-center p-4" style={{ color: '#8b95a5' }}>No data available</div>
+          <div className={`text-center p-4 ${styles.emptyText}`}>No data available</div>
         ) : (
           tableData.map((row) => {
             const waterStatusClass = 
