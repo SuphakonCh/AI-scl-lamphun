@@ -49,8 +49,10 @@ try {
         .use(userRoutes)
       )
       // รับ Request
-      app.listen(port);
-
+      .listen({ 
+      port: port, 
+      hostname: "0.0.0.0" 
+     });
     console.log(`🦊 Elysia is running at port ${port}`);
 
   } catch (error) {
