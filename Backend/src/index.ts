@@ -5,6 +5,7 @@ import { deviceRoutes } from "./api/v2/device";
 import { userRoutes } from "./api/v2/user";
 import {db, initialize } from "./db/database";
 import { startMainStreamCorrectionSync, startMainStreamLatestSync } from "./services/mainStream";
+import { staticPlugin } from "@elysiajs/static";
 
 const port = Number(process.env.PORT ?? 3000);
 
@@ -12,31 +13,32 @@ const port = Number(process.env.PORT ?? 3000);
 const allowedOrigin = process.env.FRONTEND_URL ?? "*";
 
 try {
-  // 2. ใช้ await เพื่อ "หยุดรอ" ให้ Database เชื่อมต่อให้เสร็จสมบูรณ์ 100% 
-  // ก่อนที่จะไปเปิด Server (แก้ปัญหา Race Condition)
   const database = await initialize();
   console.log("✅ Database connected successfully");
   
-  // 3. เริ่มทำงาน Background Services
   startMainStreamLatestSync(db);
   startMainStreamCorrectionSync(db);
 
-  // 4. พอ DB พร้อมปุ๊บ เราค่อยสร้างแอป Elysia และเปิดประตูรับ Request
   const app = new Elysia()
-    .use(
-      cors({
-        origin: allowedOrigin, // <--- ใช้ตัวแปรแทน "*" 
-      })
-    )
+    // 2. ใช้ staticPlugin เสิร์ฟไฟล์หน้าเว็บ (React/Vite)
+    .use(staticPlugin({
+      assets: './public',
+      prefix: '/' 
+    }))
+    // 3. ใช้ CORS (ถ้า frontend อยู่ที่เดียวกับ backend แล้ว เต้จะเปิดไว้ก็ไม่เสียหายครับ)
+    .use(cors({ origin: allowedOrigin }))
     .use(deviceRoutes)
     .use(authRoutes)
     .use(userRoutes)
-    .get("/", () => "Hello Elysia - API v2 is running")
+    // 4. API Routes ควรขึ้นต้นด้วย /api เพื่อไม่ให้ชนกับไฟล์หน้าเว็บ
+    .group("/api", (app) => app
+      .use(deviceRoutes)
+      .use(authRoutes)
+      .use(userRoutes)
+    )
     .listen({ port, hostname: "0.0.0.0" });
 
-  console.log(
-    `🦊 Elysia is running securely at http://${app.server?.hostname}:${app.server?.port}`
-  );
+  console.log(`🦊 Elysia is running at http://${app.server?.hostname}:${app.server?.port}`);
 
 } catch (error) {
   // 5. ถ้าต่อ DB ไม่ติด ก็ไม่ต้องเปิด Server ให้โปรแกรมแจ้งเตือนแล้วตายไปเลย (Fail-Fast)
