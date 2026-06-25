@@ -35,11 +35,6 @@ try {
 
   // 4. สร้าง App
   const app = new Elysia()
-    // เสิร์ฟหน้าเว็บจากโฟลเดอร์ public
-    .use(staticPlugin({
-      assets: './public',
-      prefix: '/'
-    }))
     
     // ใช้ CORS
     .use(cors({ origin: allowedOrigin }))
@@ -49,7 +44,24 @@ try {
     .use(userRoutes)
 
     // 👇 SPA Fallback สำหรับ React/Vite (ต้องอยู่ล่างสุดของ Route เสมอ)
-    .get("*", () => Bun.file("./public/index.html"))
+    .get("*", async ({ path }) => {
+      // 1. ถ้า User เข้ามาที่หน้าแรก (/) ให้ส่ง index.html ทันที
+      if (path === "/") {
+        return Bun.file("./public/index.html");
+      }
+
+      // 2. ลองประกอบ Path เพื่อค้นหาไฟล์ (เช่น /assets/xxx.css จะกลายเป็น ./public/assets/xxx.css)
+      const file = Bun.file(`./public${path}`);
+
+      // 3. เช็คว่ามีไฟล์นี้อยู่จริงไหม? ถ้ามีให้ส่งไฟล์นั้นกลับไปเลย (Bun จะจัดการเรื่อง MIME Type ให้ถูกต้องเอง)
+      if (await file.exists()) {
+        return file;
+      }
+
+      // 4. ถ้าหาไฟล์ไม่เจอ (เช่น User พิมพ์ URL /dashboard) ให้ส่ง index.html ไปแทน 
+      // เพื่อให้ React Router ฝั่งเบราว์เซอร์ทำงานต่อ (SPA Fallback)
+      return Bun.file("./public/index.html");
+    })
     
     // รับ Request (ผูก 0.0.0.0 สำหรับ Railway)
     .listen({ 
