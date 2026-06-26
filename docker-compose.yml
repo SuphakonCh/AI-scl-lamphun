@@ -1,50 +1,33 @@
-
-
 services:
   db:
     image: postgres:16-alpine
     restart: always
     environment:
-      POSTGRES_USER: user
-      POSTGRES_PASSWORD: adminUser123
-      POSTGRES_DB: mydb
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_DATABASE}
     volumes:
       - data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
-  backend:
-    # 1. สั่งให้ Compose ไปใช้ "พิมพ์เขียว" ที่เราเพิ่งสร้าง
-    build: 
-      context: ./Backend
-    
-    # 2. Override (เขียนทับ) คำสั่ง CMD ใน Dockerfile
-    # เปลี่ยนจากการรันธรรมดา เป็นการรันแบบ --watch เพื่อให้เหมาะกับการ Dev บนเครื่องเรา
-    command: bun run --watch src/index.ts
-    
-    # 3. เจาะช่อง Bind Mount เอาโฟลเดอร์ในเครื่องเต้ ไปทับโฟลเดอร์ /app ใน Container อีกที
-    # ทำให้เวลาเต้แก้โค้ด มันจะอัปเดตแบบ Real-time โดยไม่ต้อง Build ใหม่
-    volumes:
-      - ./Backend:/app
-      
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "3000:3000"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     env_file:
       - ./Backend/.env
     environment:
-      DATABASE_URL: "postgresql://user:adminUser123@db:5432/mydb"
-
-
-  # ==========================================
-  # 3. ฝั่ง Frontend
-  # ==========================================
-  frontend:
-    build: 
-      context: ./Frontend
-    ports:
-      - "8080:80"
-    depends_on:
-      - backend
+      DATABASE_URL: "postgresql://${DB_USERNAME}:${DB_PASSWORD}@db:5432/${DB_DATABASE}"
 
 volumes:
   data:

@@ -2,7 +2,7 @@ import { Elysia, t } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { sql } from 'drizzle-orm'
 import { and, eq } from 'drizzle-orm/sql/expressions/conditions'
-import { db } from '../..'
+import { db } from '../../db/database'
 import { deviceData, deviceOwners, devices } from '../../db/schema'
 import { toUtcPlus7String } from '../../services/mainStream'
 
@@ -324,6 +324,7 @@ export const deviceRoutes = new Elysia({
           message: 'Invalid or expired token'
         }
       }
+      const userId = Number(payload.id);
 
       const database = await db
       const { deviceId } = body
@@ -375,7 +376,7 @@ export const deviceRoutes = new Elysia({
           .delete(deviceOwners)
           .where(
             and(
-              eq(deviceOwners.userId, payload.id),
+              eq(deviceOwners.userId, userId),
               eq(deviceOwners.deviceId, deviceRecord.id)
             )
           )

@@ -1,7 +1,7 @@
 import { Elysia, t } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import { and, eq, ne } from 'drizzle-orm/sql/expressions/conditions'
-import { db } from '../..'
+import { db } from '../../db/database'
 import { deviceOwners, devices, users } from '../../db/schema'
 
 const getBearerToken = (authHeader?: string) => {

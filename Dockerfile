@@ -1,24 +1,34 @@
-FROM oven/bun:1 AS build
-
-WORKDIR /app
-
-COPY Backend/package.json Backend/bun.lock ./
+# ==========================================
+# Stage 1: Build Frontend
+# ==========================================
+FROM oven/bun:1-alpine AS build-frontend
+WORKDIR /app/frontend
+COPY Frontend/package.json Frontend/bun.lock ./
 RUN bun install --frozen-lockfile
+COPY Frontend/ .
+RUN bun run build 
 
-COPY Backend/src ./src
-COPY Backend/tsconfig.json ./
-
-RUN bun run build
-
+# ==========================================
+# Stage 2: Final Runtime (รวม Backend + Frontend Dist)
+# ==========================================
 FROM oven/bun:1-alpine
 
 WORKDIR /app
 
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./
-
+# 1. ติดตั้ง Backend Dependencies
+COPY Backend/package.json Backend/bun.lock ./
 RUN bun install --frozen-lockfile --production
+
+# 2. ก๊อปปี้ Backend Source Code ทั้งหมด
+COPY Backend/ .
+
+# 3. ก๊อปปี้ไฟล์หน้าเว็บที่ Build เสร็จแล้ว (dist) จาก Stage 1 มาที่โฟลเดอร์ public
+COPY --from=build-frontend /app/frontend/dist ./public
+
+# 4. สิทธิ์ความปลอดภัย
+RUN chown -R bun:bun /app
+#USER bun
 
 EXPOSE 3000
 
-CMD ["bun", "run", "dist/index.js"]
+CMD ["bun", "run", "src/index.ts"]

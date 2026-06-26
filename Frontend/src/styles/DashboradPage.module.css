@@ -1,118 +1,122 @@
-/* คอนเทนเนอร์ใหญ่ของหน้าเพจแดชบอร์ด  */
 .container {
-  padding: 20px 0;
-  background-color: #1E293B; 
-  color: #ffffff;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-/* --- ส่วนบน: บล็อกสถิติรายวัน และ ตารางเปอร์เซ็นต์ฝน --- */
 .topSection {
-  display: grid;
-  grid-template-columns: 1.5fr 1fr; /* แบ่งพื้นที่ฝั่งการ์ด 60% ฝั่งตารางฝน 40% */
-  gap: 24px;
-  width: 1356px;                    /* ล็อกหน้ากว้างให้เท่ากับหัวข้อตารางด้านล่าง */
-  margin: 0 auto 30px auto;         /* จัดกึ่งกลางหน้าจอ */
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    align-items: flex-start;
 }
 
 .topLeft {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+    display: flex;
+    flex-direction: column;
+    flex: 2;
+    gap: 14px;
 }
 
 .cardGrid {
-  display: flex;
-  gap: 20px;
-  flex-wrap: wrap;
+    display: flex;
+    gap: 14px;
+    width: 100%;
 }
 
-/* แถบตัวเลือกดรอปดาวน์ตั้งค่ากราฟ */
 .controlBar {
-  display: flex;
-  gap: 16px;
+    display: flex;
+    gap: 12px;
 }
 
 .selectInput {
-  background-color: #222b3a;
-  border: 1px solid #2d3748;
-  color: #ffffff;
-  padding: 8px 16px;
-  border-radius: 8px;
-  outline: none;
-  cursor: pointer;
-  font-size: 14px;
+    background: #ffffff;
+    color: #111827;
+    border: none;
+    padding: 10px 28px;
+    border-radius: 40px;
+    font-family: var(--font-ui);
+    font-size: 14px;
+    font-weight: 700;
+    min-width: 160px;
+    outline: none;
+    cursor: pointer;
+    appearance: auto;
+}
+
+.selectInput:hover {
+    background: #f3f4f6;
 }
 
 .topRight {
-  display: flex;
-  flex-direction: column;
+    flex: 1;
+    display: flex;
 }
 
-/* กล่องการ์ดแสดงผลเปอร์เซ็นต์ฝนรายสัปดาห์ */
 .probTableCard {
-  background: #222b3a;
-  border-radius: 16px;
-  padding: 20px;
-  border: 1px solid #2d3748;
+    background: var(--color-bg-surface);
+    border-radius: 10px;
+    border: 1px solid var(--color-border-line);
+    padding: 16px 20px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .probHeader {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 16px;
-  color: #ffffff;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 12px;
 }
 
 .probGrid {
-  display: grid;
-  grid-template-columns: 60px repeat(7, 1fr); /* คอลัมน์เวลา + คอลัมน์วันทั้ง 7 */
-  gap: 12px;
-  text-align: center;
-  font-size: 13px;
-  color: #8b95a5;
+    display: grid;
+    grid-template-columns: 56px repeat(7, 1fr);
+    gap: 6px 8px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--color-text-secondary);
 }
 
 .probTimeCol {
-  text-align: left;
-  font-weight: 500;
-  color: #ffffff;
+    text-align: left;
+    color: var(--color-text-primary);
+    font-size: 12px;
 }
 
-/* ดึงโครงสร้างชุดข้อมูลลูปสแปนให้ออกมาเรียงตัวตาม Grid แม่ */
 .probRowContents {
-  display: contents;
-  color: #ffffff;
+    display: contents;
 }
 
-/* --- ส่วนกลาง: พื้นที่วางกราฟเทคนิคัลระดับน้ำ --- */
 .chartSection {
-  width: 1356px;
-  margin: 0 auto 30px auto;
+    width: 100%;
 }
 
 .chartWrapper {
-  background: #222b3a;
-  border-radius: 16px;
-  padding: 24px;
-  border: 1px solid #2d3748;
+    background: var(--color-bg-surface);
+    border-radius: 10px;
+    padding: 24px;
+    border: 1px solid var(--color-border-line);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    height: 420px;
 }
 
-/* --- ส่วนล่างสุด: พื้นที่วางตารางข้อมูลสถานีทรงแคปซูล --- */
 .tableSection {
-  width: 1356px;
-  margin: 0 auto;
-}
-
-@media (max-width: 1400px) {
-  .topSection, .chartSection, .tableSection {
     width: 100%;
-    padding: 0 20px;
-    box-sizing: border-box;
-  }
+    background: var(--color-bg-surface);
+    border-radius: 10px;
+    border: 1px solid var(--color-border-line);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
 }
 
 @media (max-width: 1024px) {
-  .topSection {
-    grid-template-columns: 1fr;
-  }
+    .topSection {
+        flex-direction: column;
+    }
+    .cardGrid {
+        flex-wrap: wrap;
+    }
 }
